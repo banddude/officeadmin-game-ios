@@ -76,6 +76,7 @@ enum WorldMapper {
             return WorldSite(
                 id: project.id,
                 name: project.name,
+                scopeLabel: project.category?.trimmingCharacters(in: .whitespacesAndNewlines),
                 customerName: project.contact?.name,
                 phase: phase,
                 coordinate: coordinate,

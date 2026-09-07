@@ -33,6 +33,9 @@ enum WorldRules {
 struct WorldSite: Identifiable, Equatable {
     let id: String                 // project id
     let name: String
+    /// A short real-data scope label for the map pin. Today this is the
+    /// project's category; a richer scope field can replace it later.
+    let scopeLabel: String?
     let customerName: String?
     let phase: Phase
     /// Real-world coordinate, from the project record when it has one, else

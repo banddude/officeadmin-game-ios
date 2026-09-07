@@ -12,13 +12,14 @@ enum SiteMarkerArt {
 
     /// Draw one site marker. `crewCount` little figures stand at the base
     /// (capped, with +N when more). Cached per key — maps redraw constantly.
-    static func marker(phase: WorldSite.Phase, name: String, crewCount: Int, urgent: Bool,
+    static func marker(phase: WorldSite.Phase, name: String, scopeLabel: String?,
+                       crewCount: Int, urgent: Bool,
                        artProvider: any WorldArtProviding = WorldArt.provider) -> UIImage {
         let providerID = ObjectIdentifier(artProvider)
-        let key = "\(providerID)|\(phase.rawValue)|\(name)|\(crewCount)|\(urgent)"
+        let key = "\(providerID)|\(phase.rawValue)|\(name)|\(scopeLabel ?? "")|\(crewCount)|\(urgent)"
         if let cached = cache.object(forKey: key as NSString) { return cached }
 
-        let size = CGSize(width: 148, height: 168)
+        let size = CGSize(width: 158, height: 184)
         let renderer = UIGraphicsImageRenderer(size: size)
         let image = renderer.image { ctx in
             let cg = ctx.cgContext
@@ -85,9 +86,10 @@ enum SiteMarkerArt {
                         tint: UIColor(Theme.ink).withAlphaComponent(0.8), cg: cg)
             }
 
-            // Name tag
-            drawTag(text: name, in: CGRect(x: 4, y: 132, width: 140, height: 30),
-                    tint: UIColor(Theme.parchment), cg: cg)
+            // Two-line site tag matching the approved world-map target:
+            // project name first, then the real project category as scope.
+            drawSiteTag(name: name, scopeLabel: scopeLabel,
+                        in: CGRect(x: 4, y: 128, width: 150, height: 50))
         }
         cache.setObject(image, forKey: key as NSString)
         return image
@@ -142,6 +144,37 @@ enum SiteMarkerArt {
                               width: rect.width - 8,
                               height: textSize.height)
         attributed.draw(in: textRect)
+    }
+
+    private static func drawSiteTag(name: String, scopeLabel: String?, in rect: CGRect) {
+        let path = UIBezierPath(roundedRect: rect, cornerRadius: 12)
+        UIColor(Theme.parchment).setFill()
+        path.fill()
+        UIColor(Theme.ink).withAlphaComponent(0.14).setStroke()
+        path.lineWidth = 1.5
+        path.stroke()
+
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        paragraph.lineBreakMode = .byTruncatingTail
+
+        let nameText = NSAttributedString(string: name, attributes: [
+            .font: UIFont.systemFont(ofSize: 12, weight: .bold),
+            .foregroundColor: UIColor(Theme.ink),
+            .paragraphStyle: paragraph,
+        ])
+        nameText.draw(in: CGRect(x: rect.minX + 6, y: rect.minY + 7,
+                                 width: rect.width - 12, height: 16))
+
+        let scope = scopeLabel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !scope.isEmpty else { return }
+        let scopeText = NSAttributedString(string: scope, attributes: [
+            .font: UIFont.systemFont(ofSize: 10, weight: .medium),
+            .foregroundColor: UIColor(Theme.ink).withAlphaComponent(0.62),
+            .paragraphStyle: paragraph,
+        ])
+        scopeText.draw(in: CGRect(x: rect.minX + 6, y: rect.minY + 26,
+                                  width: rect.width - 12, height: 14))
     }
 }
 

@@ -62,6 +62,7 @@ final class WorldMapperTests: XCTestCase {
         XCTAssertEqual(coordinate.latitude, 34.1017, accuracy: 0.0001)
         XCTAssertEqual(coordinate.longitude, -118.3391, accuracy: 0.0001)
         XCTAssertEqual(kimura.phase, .active)
+        XCTAssertEqual(kimura.scopeLabel, "Service upgrade")
         XCTAssertEqual(kimura.customerName, "Kenji Kimura")
     }
 

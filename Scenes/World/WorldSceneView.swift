@@ -9,6 +9,7 @@ import SwiftUI
 
 struct WorldSceneView: View {
     @Bindable var store: GameStore
+    var artProvider: any WorldArtProviding = WorldArt.provider
     @State private var selectedSite: WorldSite?
     @State private var showingOffice = false
 
@@ -20,7 +21,8 @@ struct WorldSceneView: View {
                 onSelectSite: { site in
                     store.travel(to: site.id)
                     selectedSite = site
-                })
+                },
+                artProvider: artProvider)
 
             chrome
 
@@ -38,11 +40,11 @@ struct WorldSceneView: View {
         }
     }
 
-    // MARK: Chrome (the only UI over the world — no lists, no tables)
+    // MARK: Chrome
 
     private var chrome: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
+        ZStack(alignment: .topLeading) {
+            HStack(alignment: .top, spacing: 10) {
                 Button {
                     Task { await store.loadWorld() }
                 } label: {
@@ -54,59 +56,147 @@ struct WorldSceneView: View {
                 }
                 .accessibilityLabel("Refresh the world")
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("Shaffer Construction")
-                        .font(Theme.rounded(17, .bold))
+                        .font(Theme.rounded(22, .bold))
                         .foregroundStyle(Theme.ink)
-                    Text(worldSubtitle)
-                        .font(Theme.rounded(12))
+                    Text("Powering a Brighter L.A.")
+                        .font(Theme.rounded(13, .medium))
                         .foregroundStyle(Theme.ink.opacity(0.6))
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Capsule().fill(Theme.parchment))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Theme.paper.opacity(0.94))
+                        .shadow(color: .black.opacity(0.12), radius: 9, y: 3)
+                )
+            }
 
+            VStack(spacing: 10) {
+                WorldAttentionCard(
+                    kind: .approval,
+                    title: "Approval needed",
+                    detail: approvalDetail,
+                    count: store.world.mail.count,
+                    artProvider: artProvider)
+                WorldAttentionCard(
+                    kind: .invoicePayment,
+                    title: "Invoice due",
+                    detail: invoiceDueDetail,
+                    count: store.world.whiteboard.count,
+                    artProvider: artProvider)
+                WorldAttentionCard(
+                    kind: .inspection,
+                    title: "Inspection today",
+                    detail: "Feed not connected",
+                    count: nil,
+                    artProvider: artProvider)
+            }
+            .frame(maxWidth: .infinity, alignment: .topTrailing)
+
+            VStack {
                 Spacer()
-
-                if store.world.attentionCount > 0 {
-                    HStack(spacing: 6) {
-                        Image(systemName: "envelope.fill")
-                        Text("\(store.world.attentionCount)")
+                HStack {
+                    Button {
+                        showingOffice = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "house.fill")
+                                .font(.system(size: 22, weight: .semibold))
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Shaffer office")
+                                    .font(Theme.rounded(14, .bold))
+                                Text("Go inside")
+                                    .font(Theme.rounded(11, .medium))
+                                    .opacity(0.72)
+                            }
+                        }
+                        .foregroundStyle(Theme.ink)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(Theme.parchment.opacity(0.96))
+                                .shadow(color: .black.opacity(0.14), radius: 9, y: 3)
+                        )
                     }
-                    .font(Theme.rounded(15, .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Capsule().fill(Theme.brick))
-                }
-
-                Button {
-                    showingOffice = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "door.left.hand.open")
-                        Text("Office")
-                    }
-                    .font(Theme.rounded(15, .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Capsule().fill(Theme.clay))
+                    Spacer()
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-
-            Spacer()
         }
+        .padding(.horizontal, 18)
+        .padding(.top, 12)
+        .padding(.bottom, 20)
     }
 
-    private var worldSubtitle: String {
-        let placed = store.world.sites.filter { $0.coordinate != nil }.count
-        let waiting = store.world.sites.filter { !$0.crewPresent.isEmpty }.count
-        return "\(placed) sites · \(waiting) with crew on them"
+    private var approvalDetail: String {
+        guard let item = store.world.mail.first else { return "Nothing waiting" }
+        return item.envelopeTitle
+    }
+
+    private var invoiceDueDetail: String {
+        guard let note = store.world.whiteboard.min(by: { $0.dueDate < $1.dueDate }) else {
+            return "Nothing due soon"
+        }
+        return "\(note.customerName) · \(note.amountDueCents.moneyString)"
+    }
+
+}
+
+
+private struct WorldAttentionCard: View {
+    let kind: WorldArt.AttentionKind
+    let title: String
+    let detail: String
+    let count: Int?
+    let artProvider: any WorldArtProviding
+
+    var body: some View {
+        HStack(spacing: 11) {
+            Image(uiImage: artProvider.attentionSprite(kind, side: 44))
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(width: 42, height: 42)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(Theme.rounded(14, .bold))
+                    .foregroundStyle(Theme.ink)
+                Text(detail)
+                    .font(Theme.rounded(11, .medium))
+                    .foregroundStyle(Theme.ink.opacity(0.62))
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 4)
+
+            if let count {
+                Text("\(count)")
+                    .font(Theme.rounded(14, .bold))
+                    .foregroundStyle(Theme.ink.opacity(count > 0 ? 0.88 : 0.42))
+            } else {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Theme.ink.opacity(0.32))
+            }
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, 10)
+        .frame(width: 250, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Theme.paper.opacity(0.95))
+                .shadow(color: .black.opacity(0.13), radius: 9, y: 3)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Theme.ink.opacity(0.06), lineWidth: 1)
+        )
     }
 }
+
 
 // MARK: - Site card (in-world, not a list)
 

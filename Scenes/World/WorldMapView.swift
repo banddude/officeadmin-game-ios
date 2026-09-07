@@ -21,6 +21,7 @@ final class SiteAnnotation: NSObject, MKAnnotation {
 
 final class SiteAnnotationView: MKAnnotationView {
     static let reuseID = "SiteAnnotationView"
+    var artProvider: any WorldArtProviding = WorldArt.provider
 
     override var annotation: MKAnnotation? { didSet { configure() } }
 
@@ -31,9 +32,11 @@ final class SiteAnnotationView: MKAnnotationView {
         image = SiteMarkerArt.marker(
             phase: site.phase,
             name: site.name,
+            scopeLabel: site.scopeLabel,
             crewCount: crew,
-            urgent: site.waitingMailCount > 0)
-        centerOffset = CGPoint(x: 0, y: -36)   // pin the base to the coordinate
+            urgent: site.waitingMailCount > 0,
+            artProvider: artProvider)
+        centerOffset = CGPoint(x: 0, y: -42)   // pin the base to the coordinate
         canShowCallout = false
         collisionMode = .circle
     }
@@ -45,6 +48,7 @@ struct WorldMapView: UIViewRepresentable {
     let sites: [WorldSite]
     let selectedSiteID: String?
     let onSelectSite: (WorldSite) -> Void
+    var artProvider: any WorldArtProviding = WorldArt.provider
 
     func makeUIView(context: Context) -> MKMapView {
         let map = MKMapView()
@@ -63,6 +67,7 @@ struct WorldMapView: UIViewRepresentable {
 
     func updateUIView(_ map: MKMapView, context: Context) {
         let coordinator = context.coordinator
+        coordinator.artProvider = artProvider
 
         // Reconcile annotations with current sites.
         let current = Dictionary(uniqueKeysWithValues: sites.compactMap { site -> (String, WorldSite)? in
@@ -77,9 +82,11 @@ struct WorldMapView: UIViewRepresentable {
         if !toRemove.isEmpty { map.removeAnnotations(toRemove) }
         if !toAdd.isEmpty { map.addAnnotations(toAdd) }
 
-        // Refresh marker art (crew/urgency change as the world refetches).
+        // Refresh marker art as crew, urgency, or the injected art changes.
         for annotation in existing where current[annotation.site.id] != nil {
-            (map.view(for: annotation) as? SiteAnnotationView)?.configure()
+            guard let view = map.view(for: annotation) as? SiteAnnotationView else { continue }
+            view.artProvider = artProvider
+            view.configure()
         }
 
         if coordinator.needsInitialCamera, let any = current.values.first {
@@ -97,23 +104,30 @@ struct WorldMapView: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onSelectSite: onSelectSite)
+        Coordinator(onSelectSite: onSelectSite, artProvider: artProvider)
     }
 
     final class Coordinator: NSObject, MKMapViewDelegate {
         let onSelectSite: (WorldSite) -> Void
+        var artProvider: any WorldArtProviding
         var needsInitialCamera = true
         var lastFlownSiteID: String?
         weak var map: MKMapView?
 
-        init(onSelectSite: @escaping (WorldSite) -> Void) {
+        init(onSelectSite: @escaping (WorldSite) -> Void,
+             artProvider: any WorldArtProviding) {
             self.onSelectSite = onSelectSite
+            self.artProvider = artProvider
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             guard annotation is SiteAnnotation else { return nil }
             let view = mapView.dequeueReusableAnnotationView(
                 withIdentifier: SiteAnnotationView.reuseID, for: annotation)
+            if let siteView = view as? SiteAnnotationView {
+                siteView.artProvider = artProvider
+                siteView.configure()
+            }
             return view
         }
 
