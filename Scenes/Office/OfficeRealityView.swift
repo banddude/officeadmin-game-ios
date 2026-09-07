@@ -19,7 +19,6 @@ import UIKit
 final class OfficeController: NSObject {
     let arView: ARView
     private let anchor = AnchorEntity(world: .zero)
-    private var updateToken: CancellationToken?
     private var tapGesture: UITapGestureRecognizer!
 
     private let fovDegrees: Float = 62
@@ -63,7 +62,8 @@ final class OfficeController: NSObject {
         anchor.addChild(player)
         placeCamera()
 
-        updateToken = arView.scene.subscribe(to: SceneEvents.Update.self, { [weak self] event in
+        // Subscription lives for the scene's lifetime (the token is discarded).
+        _ = arView.scene.subscribe(to: SceneEvents.Update.self, { [weak self] event in
             self?.tick(deltaTime: Float(event.deltaTime))
         })
 
@@ -100,9 +100,14 @@ final class OfficeController: NSObject {
         let mesh = MeshResource.generateBox(size: size)
         let surface = WorldArt.paperSurface(kind)
         let material: SimpleMaterial
-        if let image = surface.image, let cgImage = image.cgImage,
-           let texture = try? TextureResource.generate(from: cgImage, options: .init(semantic: .color)) {
-            material = SimpleMaterial(color: .texture(texture), isMetallic: false)
+        if let image = surface.image, let cgImage = image.cgImage {
+            var descriptor = TextureResource.Descriptor()
+            descriptor.semantic = .color
+            if let texture = try? TextureResource.generate(from: cgImage, options: descriptor) {
+                material = SimpleMaterial(color: .texture(texture), isMetallic: false)
+            } else {
+                material = SimpleMaterial(color: surface.tint, isMetallic: false)
+            }
         } else {
             material = SimpleMaterial(color: surface.tint, isMetallic: false)
         }
