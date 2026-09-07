@@ -109,7 +109,9 @@ final class OfficeController: NSObject {
            let texture = try? TextureResource.generate(
                from: cgImage,
                options: TextureResource.CreateOptions(semantic: .color)) {
-            material = SimpleMaterial(texture: texture, isMetallic: false)
+            var textured = SimpleMaterial(color: .white, isMetallic: false)
+            textured.color = .init(tint: .white, texture: .init(texture))
+            material = textured
         } else {
             material = SimpleMaterial(color: surface.tint, isMetallic: false)
         }
