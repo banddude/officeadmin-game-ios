@@ -174,6 +174,24 @@ final class WorldMapperTests: XCTestCase {
         XCTAssertEqual(world.playerName, "Mike Shaffer")
     }
 
+    func testRuntimeEnvironmentBuildsNonPersistentCredentials() throws {
+        let credentials = try XCTUnwrap(GameCredentials.fromEnvironment([
+            GameCredentials.baseURLEnvironmentKey: "https://officeadmin.example",
+            GameCredentials.apiKeyEnvironmentKey: "dk_test_only",
+            GameCredentials.organizationIDEnvironmentKey: "org-test",
+        ]))
+        XCTAssertEqual(credentials.baseURL.absoluteString, "https://officeadmin.example")
+        XCTAssertEqual(credentials.apiKey, "dk_test_only")
+        XCTAssertEqual(credentials.organizationId, "org-test")
+    }
+
+    func testRuntimeEnvironmentRequiresURLAndKey() {
+        XCTAssertNil(GameCredentials.fromEnvironment([:]))
+        XCTAssertNil(GameCredentials.fromEnvironment([
+            GameCredentials.baseURLEnvironmentKey: "https://officeadmin.example",
+        ]))
+    }
+
     // MARK: - Fixture helpers
 
     private func fixture<T: Decodable>(_ name: String, as type: T.Type = T.self) -> T {

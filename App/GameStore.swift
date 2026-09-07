@@ -39,6 +39,12 @@ final class GameStore {
     // MARK: Connection
 
     func restoreSession() {
+        if let credentials = GameCredentials.fromEnvironment() {
+            client = OAClient(credentials: credentials)
+            phase = .loading
+            Task { await loadWorld() }
+            return
+        }
         guard let credentials = KeychainCredentialStore.load() else {
             phase = .needsSetup
             return

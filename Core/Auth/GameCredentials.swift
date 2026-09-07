@@ -12,9 +12,27 @@ import Foundation
 /// `organizationId` is optional: when nil the server auto-resolves the org for
 /// single-membership keys (lib/api/auth-context.ts), same as a bare web call.
 struct GameCredentials: Codable, Equatable {
+    static let baseURLEnvironmentKey = "OFFICEADMIN_BASE_URL"
+    static let apiKeyEnvironmentKey = "OFFICEADMIN_API_KEY"
+    static let organizationIDEnvironmentKey = "OFFICEADMIN_ORGANIZATION_ID"
+
     var baseURL: URL
     var apiKey: String
     var organizationId: String?
+
+    /// Explicit runtime injection for simulator/dev launches. These values
+    /// are used in memory only and are never saved to the app Keychain.
+    static func fromEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> GameCredentials? {
+        guard let base = environment[baseURLEnvironmentKey],
+              let baseURL = URL(string: base),
+              let apiKey = environment[apiKeyEnvironmentKey]?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !apiKey.isEmpty else { return nil }
+        let organizationId = environment[organizationIDEnvironmentKey]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return GameCredentials(
+            baseURL: baseURL,
+            apiKey: apiKey,
+            organizationId: organizationId?.isEmpty == false ? organizationId : nil)
+    }
 
     /// The base URL normalized to end with exactly one trailing slash-less
     /// form, so `baseURL.appending(path:...)` never double-slashes.
