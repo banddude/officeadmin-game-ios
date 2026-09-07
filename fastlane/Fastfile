@@ -30,10 +30,11 @@ platform :ios do
 
   private_lane :prep_keychain do
     password = ENV["AIVA_BUILD_KEYCHAIN_PASSWORD"]
-    UI.user_error!("AIVA_BUILD_KEYCHAIN_PASSWORD is required") if password.to_s.empty?
+    unless password.to_s.empty?
+      sh("security unlock-keychain -p #{password.shellescape} #{BUILD_KEYCHAIN.shellescape}")
+      sh("security set-key-partition-list -S apple-tool:,apple:,codesign: -k #{password.shellescape} #{BUILD_KEYCHAIN.shellescape} >/dev/null 2>&1 || true")
+    end
 
-    sh("security unlock-keychain -p #{password.shellescape} #{BUILD_KEYCHAIN.shellescape}")
-    sh("security set-key-partition-list -S apple-tool:,apple:,codesign: -k #{password.shellescape} #{BUILD_KEYCHAIN.shellescape} >/dev/null 2>&1 || true")
     sh("security list-keychains -d user -s #{BUILD_KEYCHAIN.shellescape} #{ENV["HOME"]}/Library/Keychains/login.keychain-db")
     sh("security find-identity -v -p codesigning #{BUILD_KEYCHAIN.shellescape} | grep -F #{DIST_CERT.shellescape}")
   end
