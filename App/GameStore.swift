@@ -115,10 +115,10 @@ final class GameStore {
 
             var inputs = WorldInputs(
                 projectDetails: details,
-                shifts: await shifts,
+                shifts: try await shifts,
                 clock: await clock,
-                approvals: await approvals,
-                invoices: await invoices,
+                approvals: try await approvals,
+                invoices: try await invoices,
                 invoiceSummary: await summary,
                 playerProfileName: await profile?.name,
                 now: Date())

@@ -146,7 +146,9 @@ struct SetupView: View {
 
     private var canConnect: Bool {
         let trimmedURL = baseURLText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard URL(string: trimmedURL), trimmedURL.hasPrefix("http") else { return false }
+        guard let url = URL(string: trimmedURL),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https" else { return false }
         return apiKey.trimmingCharacters(in: .whitespacesAndNewlines).count > 8
     }
 

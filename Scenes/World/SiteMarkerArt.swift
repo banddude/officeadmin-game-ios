@@ -41,7 +41,7 @@ enum SiteMarkerArt {
             roofPath.addLine(to: CGPoint(x: 74, y: 30))
             roofPath.addLine(to: CGPoint(x: 108, y: 58))
             roofPath.close()
-            UIColor(roof).setFill()
+            roof.setFill()
             roofPath.fill()
             let roofShine = UIBezierPath()
             roofShine.move(to: CGPoint(x: 74, y: 30))
@@ -99,7 +99,7 @@ enum SiteMarkerArt {
         let image = UIGraphicsImageRenderer(size: size).image { ctx in
             let cg = ctx.cgContext
             cg.setFillColor(color.cgColor)
-            cg.fill(roundedRect: CGRect(x: 20, y: 26, width: 24, height: 40), cornerWidth: 11, cornerHeight: 11)
+            UIBezierPath(roundedRect: CGRect(x: 20, y: 26, width: 24, height: 40), cornerRadius: 11).fill()
             cg.setFillColor(UIColor(Theme.ink).withAlphaComponent(0.85).cgColor)
             cg.fillEllipse(in: CGRect(x: 24, y: 8, width: 16, height: 16))
             let label = NSAttributedString(string: label, attributes: [
