@@ -42,6 +42,7 @@ final class OfficeController: NSObject {
 
     // Room extents (meters); the player is clamped to walkable space.
     private let roomHalf: SIMD2<Float> = SIMD2(5.0, 4.0)
+    private let wallT: Float = 0.15
 
     init(frame: CGRect) {
         arView = ARView(frame: frame)
@@ -53,8 +54,9 @@ final class OfficeController: NSObject {
         buildRoom()
         buildLights()
 
-        cameraEntity.components.set(
-            PerspectiveCameraComponent(cameraMode: .nonAR(fieldOfViewInDegrees: CGFloat(fovDegrees))))
+        var cameraComponent = PerspectiveCameraComponent()
+        cameraComponent.cameraMode = .nonAR(fieldOfViewInDegrees: CGFloat(fovDegrees))
+        cameraEntity.components.set(cameraComponent)
         anchor.addChild(cameraEntity)
 
         player = makePlayer()
@@ -100,14 +102,10 @@ final class OfficeController: NSObject {
         let mesh = MeshResource.generateBox(size: size)
         let surface = WorldArt.paperSurface(kind)
         let material: SimpleMaterial
-        if let image = surface.image, let cgImage = image.cgImage {
-            var descriptor = TextureResource.Descriptor()
-            descriptor.semantic = .color
-            if let texture = try? TextureResource.generate(from: cgImage, options: descriptor) {
-                material = SimpleMaterial(color: .texture(texture), isMetallic: false)
-            } else {
-                material = SimpleMaterial(color: surface.tint, isMetallic: false)
-            }
+        if let image = surface.image, let cgImage = image.cgImage,
+           let texture = try? TextureResource.generate(
+               from: cgImage, options: TextureResource.CreateOptions(semantic: .color)) {
+            material = SimpleMaterial(texture: texture, isMetallic: false)
         } else {
             material = SimpleMaterial(color: surface.tint, isMetallic: false)
         }
@@ -125,7 +123,7 @@ final class OfficeController: NSObject {
                             at: SIMD3(0, -0.1, 0), collision: true))
         let rug = Entity()
         rug.components.set(ModelComponent(
-            mesh: MeshResource.generateCylinder(radius: 1.7, height: 0.03),
+            mesh: MeshResource.generateCylinder(height: 0.03, radius: 1.7),
             materials: [SimpleMaterial(color: UIColor(red: 0.47, green: 0.63, blue: 0.47, alpha: 1),
                                        isMetallic: false)]))
         rug.position = SIMD3(0, 0.015, 0.6)
@@ -169,7 +167,7 @@ final class OfficeController: NSObject {
         // Plant in the corner: pot + foliage blobs
         let pot = Entity()
         pot.components.set(ModelComponent(
-            mesh: MeshResource.generateCylinder(radius: 0.22, height: 0.35),
+            mesh: MeshResource.generateCylinder(height: 0.35, radius: 0.22),
             materials: [SimpleMaterial(color: UIColor(red: 0.80, green: 0.48, blue: 0.33, alpha: 1),
                                        isMetallic: false)]))
         pot.position = SIMD3(roomHalf.x - 0.7, 0.175, -roomHalf.y + 0.7)
@@ -207,7 +205,7 @@ final class OfficeController: NSObject {
         let player = Entity()
         let body = Entity()
         body.components.set(ModelComponent(
-            mesh: MeshResource.generateCapsule(capsule: Capsule(height: 1.15, radius: 0.30)),
+            mesh: MeshResource.generateCylinder(height: 1.15, radius: 0.30),
             materials: [SimpleMaterial(color: UIColor(red: 0.80, green: 0.48, blue: 0.33, alpha: 1),
                                        isMetallic: false)]))
         body.position = SIMD3(0, 0.62, 0)
@@ -222,7 +220,7 @@ final class OfficeController: NSObject {
         // Little cap so the player reads as "the boss"
         let cap = Entity()
         cap.components.set(ModelComponent(
-            mesh: MeshResource.generateCylinder(radius: 0.27, height: 0.12),
+            mesh: MeshResource.generateCylinder(height: 0.12, radius: 0.27),
             materials: [SimpleMaterial(color: UIColor(red: 0.24, green: 0.20, blue: 0.16, alpha: 1),
                                        isMetallic: false)]))
         cap.position = SIMD3(0, 1.60, 0)
@@ -237,7 +235,7 @@ final class OfficeController: NSObject {
         let mesh = MeshResource.generateText(
             string,
             extrusionDepth: 0.02,
-            font: .systemFont(ofSize: height, weight: .bold),
+            font: .systemFont(ofSize: CGFloat(height), weight: .bold),
             containerFrame: .zero,
             alignment: .center,
             lineBreakMode: .byWordWrapping)
@@ -288,7 +286,7 @@ final class OfficeController: NSObject {
             }
             let seal = Entity()
             seal.components.set(ModelComponent(
-                mesh: MeshResource.generateCylinder(radius: 0.035, height: 0.012),
+                mesh: MeshResource.generateCylinder(height: 0.012, radius: 0.035),
                 materials: [SimpleMaterial(color: sealColor, isMetallic: false)]))
             seal.position = SIMD3(0.09, 0.02, 0.05)
             envelope.addChild(seal)
@@ -309,7 +307,7 @@ final class OfficeController: NSObject {
         for i in 0..<coinCount {
             let coin = Entity()
             coin.components.set(ModelComponent(
-                mesh: MeshResource.generateCylinder(radius: 0.085, height: 0.016),
+                mesh: MeshResource.generateCylinder(height: 0.016, radius: 0.085),
                 materials: [SimpleMaterial(color: UIColor(red: 0.85, green: 0.66, blue: 0.27, alpha: 1),
                                            isMetallic: true)]))
             coin.position = SIMD3(-0.85 + Float(i % 2) * 0.19, 0.83 + Float(i / 2) * 0.018, -3.05)
@@ -336,7 +334,7 @@ final class OfficeController: NSObject {
             let sticky = paperBox(SIMD3(0.34, 0.001, 0.30),
                                   kind: note.isUrgent ? .letter : .stickyNote,
                                   at: SIMD3(-1.02 + Float(col) * 0.56, 1.78 - Float(row) * 0.40,
-                                            -roomHalf.y + t / 2 + 0.075))
+                                            -roomHalf.y + wallT / 2 + 0.075))
             sticky.orientation = simd_quatf(angle: Float.random(in: -0.06...0.06), axis: [0, 1, 0])
             anchor.addChild(sticky)
             dynamicEntities.append(sticky)
@@ -418,11 +416,13 @@ final class OfficeController: NSObject {
         let direction = normalize(cameraEntity.orientation.act(dirCamera))
         let origin = cameraEntity.position(relativeTo: nil)
 
+        // Closest hit wins (query types here are .all/.any, so sort by distance).
         let hits = arView.scene.raycast(origin: origin,
                                         direction: direction,
                                         length: 30,
-                                        query: .closest)
-        guard let entity = hits.first?.entity else { return }
+                                        query: .all)
+        guard let hit = hits.min(by: { $0.distance < $1.distance }) else { return }
+        let entity = hit.entity
         // Walk up to the named envelope.
         var cursor: Entity? = entity
         while let current = cursor {
