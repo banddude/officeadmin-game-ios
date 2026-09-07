@@ -1,0 +1,543 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	objectVersion = 56;
+	classes = {
+	};
+	objects = {
+
+/* Begin PBXBuildFile section */
+		FB42805BC37D69F1D58C1FAC /* App/AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93393DAB10A3854DCBCD076A /* App/AppTheme.swift */; }
+		977C4A41024BD35B25900522 /* App/GameStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 231F0D32A6CB25AD70ACAB88 /* App/GameStore.swift */; }
+		9DA6C4A22D8377848F868C1B /* App/OfficeAdminGameApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DD131C0722F689C3E721CBA /* App/OfficeAdminGameApp.swift */; }
+		A499682E1D839B8D40C1AAD2 /* App/RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4CCFBDE1F69B12F9796726 /* App/RootView.swift */; }
+		05C3A83394FB6D0A32C1D2EF /* Assets/WorldArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = D26BE4C45055820CA368265F /* Assets/WorldArt.swift */; }
+		25348607EA51E78D2547E08D /* Core/API/OAClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9CA3E265EFAC1E6BE770FD5 /* Core/API/OAClient.swift */; }
+		0F803CBA8A24D5805CCD108B /* Core/API/OAWireModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A650BBED79A410D4E8DBCF4 /* Core/API/OAWireModels.swift */; }
+		AE5B59AB5AA0A0B2DD16535C /* Core/Auth/GameCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = B48FCF0B2B9328A39DB74357 /* Core/Auth/GameCredentials.swift */; }
+		C061CF7ADD97129EE6E6F151 /* Core/Auth/KeychainCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E24C554F8AFC02782425B49C /* Core/Auth/KeychainCredentialStore.swift */; }
+		F696C43C5F10492302BB477F /* Core/World/AddressGeocoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BF96F2341A995AD74DF7098 /* Core/World/AddressGeocoder.swift */; }
+		E35A868E436DBA08D86AFE9E /* Core/World/WorldMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0C2759AF689FE1C7378F0C3 /* Core/World/WorldMapper.swift */; }
+		9DBB8965B1B2AF9761B10671 /* Core/World/WorldModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F7AD75817E45496FB17F03 /* Core/World/WorldModels.swift */; }
+		0A021E5CC17F67F81D39AB5B /* Scenes/Office/JoystickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE9D473B47C5FAC0FEAC693D /* Scenes/Office/JoystickView.swift */; }
+		F5AB3646637EF76F577088DD /* Scenes/Office/OfficeRealityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EFD757D2FF81BCC38B5EC7D /* Scenes/Office/OfficeRealityView.swift */; }
+		51D2CAB9D29287284047C048 /* Scenes/Office/OfficeSceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41904CF139628289551B4C21 /* Scenes/Office/OfficeSceneView.swift */; }
+		82876B849D64E029C0C01B00 /* Scenes/World/SiteMarkerArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59E86E30AAEFF47E877871B2 /* Scenes/World/SiteMarkerArt.swift */; }
+		CEF18D6F6393316648733A8A /* Scenes/World/WorldMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B78CB48157F92F3C9C2FCD82 /* Scenes/World/WorldMapView.swift */; }
+		14E31CDC376CB2A5B981D7E5 /* Scenes/World/WorldSceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1254F677C8C35039A107E598 /* Scenes/World/WorldSceneView.swift */; }
+		25348607EA51E78D2547E08D /* Core/API/OAClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9CA3E265EFAC1E6BE770FD5 /* Core/API/OAClient.swift */; }
+		0F803CBA8A24D5805CCD108B /* Core/API/OAWireModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A650BBED79A410D4E8DBCF4 /* Core/API/OAWireModels.swift */; }
+		AE5B59AB5AA0A0B2DD16535C /* Core/Auth/GameCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = B48FCF0B2B9328A39DB74357 /* Core/Auth/GameCredentials.swift */; }
+		C061CF7ADD97129EE6E6F151 /* Core/Auth/KeychainCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E24C554F8AFC02782425B49C /* Core/Auth/KeychainCredentialStore.swift */; }
+		F696C43C5F10492302BB477F /* Core/World/AddressGeocoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BF96F2341A995AD74DF7098 /* Core/World/AddressGeocoder.swift */; }
+		E35A868E436DBA08D86AFE9E /* Core/World/WorldMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0C2759AF689FE1C7378F0C3 /* Core/World/WorldMapper.swift */; }
+		9DBB8965B1B2AF9761B10671 /* Core/World/WorldModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F7AD75817E45496FB17F03 /* Core/World/WorldModels.swift */; }
+		8C79FCE47298BF4BAEBF3800 /* OfficeAdminGameTests/WorldMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C613950BFA707B5B6F15B2 /* OfficeAdminGameTests/WorldMapperTests.swift */; }
+		BCC7C0900E3A42910A3D452B /* OfficeAdminGameTests/Fixtures/approval-requests.json in Resources */ = {isa = PBXBuildFile; fileRef = C90AA8A0CF8B46FD8C840FCB /* OfficeAdminGameTests/Fixtures/approval-requests.json */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; }
+		BCE8D090C92DFDE6ECF9855A /* OfficeAdminGameTests/Fixtures/clock.json in Resources */ = {isa = PBXBuildFile; fileRef = 9A5581B8D09B3713AE7036F4 /* OfficeAdminGameTests/Fixtures/clock.json */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; }
+		D79059C809FB51D1B0E6041D /* OfficeAdminGameTests/Fixtures/contacts.json in Resources */ = {isa = PBXBuildFile; fileRef = 7AAED9749B2F3A86F40D50C2 /* OfficeAdminGameTests/Fixtures/contacts.json */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; }
+		96091C3EFCF8179CC4DABDDD /* OfficeAdminGameTests/Fixtures/invoice-summary.json in Resources */ = {isa = PBXBuildFile; fileRef = EEAC90D10C1EA896C98189C8 /* OfficeAdminGameTests/Fixtures/invoice-summary.json */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; }
+		06B3CEE0E842F9832092590F /* OfficeAdminGameTests/Fixtures/invoices.json in Resources */ = {isa = PBXBuildFile; fileRef = A1AEB7CA2466B737F654BF23 /* OfficeAdminGameTests/Fixtures/invoices.json */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; }
+		632CADCC90FF6270CAE4AF1C /* OfficeAdminGameTests/Fixtures/projects-detail-no-coords.json in Resources */ = {isa = PBXBuildFile; fileRef = 154C688A9E30325FA292B086 /* OfficeAdminGameTests/Fixtures/projects-detail-no-coords.json */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; }
+		B32904076DB4B79B355978A5 /* OfficeAdminGameTests/Fixtures/projects-detail.json in Resources */ = {isa = PBXBuildFile; fileRef = AC7838558F26DD49EE7CB860 /* OfficeAdminGameTests/Fixtures/projects-detail.json */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; }
+		79E4C22961A098F8A1F241CF /* OfficeAdminGameTests/Fixtures/projects-list.json in Resources */ = {isa = PBXBuildFile; fileRef = 16487DB74F1580616E5505AA /* OfficeAdminGameTests/Fixtures/projects-list.json */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; }
+		B99F5D9D845DDBCB23A000CD /* OfficeAdminGameTests/Fixtures/scheduled-shifts.json in Resources */ = {isa = PBXBuildFile; fileRef = A6A7C544E401D3F12E548BC5 /* OfficeAdminGameTests/Fixtures/scheduled-shifts.json */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; }
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		93393DAB10A3854DCBCD076A /* App/AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		231F0D32A6CB25AD70ACAB88 /* App/GameStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameStore.swift; sourceTree = "<group>"; };
+		4DD131C0722F689C3E721CBA /* App/OfficeAdminGameApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficeAdminGameApp.swift; sourceTree = "<group>"; };
+		4D4CCFBDE1F69B12F9796726 /* App/RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		D26BE4C45055820CA368265F /* Assets/WorldArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldArt.swift; sourceTree = "<group>"; };
+		A9CA3E265EFAC1E6BE770FD5 /* Core/API/OAClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAClient.swift; sourceTree = "<group>"; };
+		3A650BBED79A410D4E8DBCF4 /* Core/API/OAWireModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAWireModels.swift; sourceTree = "<group>"; };
+		B48FCF0B2B9328A39DB74357 /* Core/Auth/GameCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCredentials.swift; sourceTree = "<group>"; };
+		E24C554F8AFC02782425B49C /* Core/Auth/KeychainCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainCredentialStore.swift; sourceTree = "<group>"; };
+		1BF96F2341A995AD74DF7098 /* Core/World/AddressGeocoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressGeocoder.swift; sourceTree = "<group>"; };
+		F0C2759AF689FE1C7378F0C3 /* Core/World/WorldMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldMapper.swift; sourceTree = "<group>"; };
+		32F7AD75817E45496FB17F03 /* Core/World/WorldModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldModels.swift; sourceTree = "<group>"; };
+		C90AA8A0CF8B46FD8C840FCB /* OfficeAdminGameTests/Fixtures/approval-requests.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = approval-requests.json; sourceTree = "<group>"; };
+		9A5581B8D09B3713AE7036F4 /* OfficeAdminGameTests/Fixtures/clock.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = clock.json; sourceTree = "<group>"; };
+		7AAED9749B2F3A86F40D50C2 /* OfficeAdminGameTests/Fixtures/contacts.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = contacts.json; sourceTree = "<group>"; };
+		EEAC90D10C1EA896C98189C8 /* OfficeAdminGameTests/Fixtures/invoice-summary.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = invoice-summary.json; sourceTree = "<group>"; };
+		A1AEB7CA2466B737F654BF23 /* OfficeAdminGameTests/Fixtures/invoices.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = invoices.json; sourceTree = "<group>"; };
+		154C688A9E30325FA292B086 /* OfficeAdminGameTests/Fixtures/projects-detail-no-coords.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = projects-detail-no-coords.json; sourceTree = "<group>"; };
+		AC7838558F26DD49EE7CB860 /* OfficeAdminGameTests/Fixtures/projects-detail.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = projects-detail.json; sourceTree = "<group>"; };
+		16487DB74F1580616E5505AA /* OfficeAdminGameTests/Fixtures/projects-list.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = projects-list.json; sourceTree = "<group>"; };
+		A6A7C544E401D3F12E548BC5 /* OfficeAdminGameTests/Fixtures/scheduled-shifts.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = scheduled-shifts.json; sourceTree = "<group>"; };
+		B1C613950BFA707B5B6F15B2 /* OfficeAdminGameTests/WorldMapperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldMapperTests.swift; sourceTree = "<group>"; };
+		CE9D473B47C5FAC0FEAC693D /* Scenes/Office/JoystickView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoystickView.swift; sourceTree = "<group>"; };
+		6EFD757D2FF81BCC38B5EC7D /* Scenes/Office/OfficeRealityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficeRealityView.swift; sourceTree = "<group>"; };
+		41904CF139628289551B4C21 /* Scenes/Office/OfficeSceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficeSceneView.swift; sourceTree = "<group>"; };
+		59E86E30AAEFF47E877871B2 /* Scenes/World/SiteMarkerArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteMarkerArt.swift; sourceTree = "<group>"; };
+		B78CB48157F92F3C9C2FCD82 /* Scenes/World/WorldMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldMapView.swift; sourceTree = "<group>"; };
+		1254F677C8C35039A107E598 /* Scenes/World/WorldSceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldSceneView.swift; sourceTree = "<group>"; };
+		0174C0329AFC5F769145E7C6 /* OfficeAdminGame.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OfficeAdminGame.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5D972B2C1A195542FCC97F86 /* OfficeAdminGameTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OfficeAdminGameTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXContainerItemProxy section */
+		4F3E108597FBBEA4A0494ABD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D972CDD0DFBAC901B72B42A6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 948FBE2018990A23731D1FE5;
+			remoteInfo = OfficeAdminGame;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F50B6420B3D9AF98836CC9B2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D7BCD3C98330FDBABA0BA09E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		00991AFEAAD5DEA38E69DE70 /* OfficeAdminGameTests */ = {
+			isa = PBXGroup;
+			children = (
+				4F03A639479B13215113CBB8 /* Fixtures */,
+				B1C613950BFA707B5B6F15B2 /* OfficeAdminGameTests/WorldMapperTests.swift */,
+			);
+			path = OfficeAdminGameTests;
+			sourceTree = "<group>";
+		};
+		08411E8E3D2FAF2D6743FC38 /* Core/Auth */ = {
+			isa = PBXGroup;
+			children = (
+				B48FCF0B2B9328A39DB74357 /* Core/Auth/GameCredentials.swift */,
+				E24C554F8AFC02782425B49C /* Core/Auth/KeychainCredentialStore.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		19AD5E543C0220E084901073 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				93393DAB10A3854DCBCD076A /* App/AppTheme.swift */,
+				231F0D32A6CB25AD70ACAB88 /* App/GameStore.swift */,
+				4DD131C0722F689C3E721CBA /* App/OfficeAdminGameApp.swift */,
+				4D4CCFBDE1F69B12F9796726 /* App/RootView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		357B5583311E04BA1DC195A9 /* Core/API */ = {
+			isa = PBXGroup;
+			children = (
+				A9CA3E265EFAC1E6BE770FD5 /* Core/API/OAClient.swift */,
+				3A650BBED79A410D4E8DBCF4 /* Core/API/OAWireModels.swift */,
+			);
+			path = API;
+			sourceTree = "<group>";
+		};
+		4F03A639479B13215113CBB8 /* OfficeAdminGameTests/Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				C90AA8A0CF8B46FD8C840FCB /* OfficeAdminGameTests/Fixtures/approval-requests.json */,
+				9A5581B8D09B3713AE7036F4 /* OfficeAdminGameTests/Fixtures/clock.json */,
+				7AAED9749B2F3A86F40D50C2 /* OfficeAdminGameTests/Fixtures/contacts.json */,
+				EEAC90D10C1EA896C98189C8 /* OfficeAdminGameTests/Fixtures/invoice-summary.json */,
+				A1AEB7CA2466B737F654BF23 /* OfficeAdminGameTests/Fixtures/invoices.json */,
+				154C688A9E30325FA292B086 /* OfficeAdminGameTests/Fixtures/projects-detail-no-coords.json */,
+				AC7838558F26DD49EE7CB860 /* OfficeAdminGameTests/Fixtures/projects-detail.json */,
+				16487DB74F1580616E5505AA /* OfficeAdminGameTests/Fixtures/projects-list.json */,
+				A6A7C544E401D3F12E548BC5 /* OfficeAdminGameTests/Fixtures/scheduled-shifts.json */,
+			);
+			path = Fixtures;
+			sourceTree = "<group>";
+		};
+		50E14033336A1D36860D7DD7 /* Scenes/Office */ = {
+			isa = PBXGroup;
+			children = (
+				CE9D473B47C5FAC0FEAC693D /* Scenes/Office/JoystickView.swift */,
+				6EFD757D2FF81BCC38B5EC7D /* Scenes/Office/OfficeRealityView.swift */,
+				41904CF139628289551B4C21 /* Scenes/Office/OfficeSceneView.swift */,
+			);
+			path = Office;
+			sourceTree = "<group>";
+		};
+		6120AD3F6DC20B053FDCDB49 /* Scenes */ = {
+			isa = PBXGroup;
+			children = (
+				50E14033336A1D36860D7DD7 /* Office */,
+				B8C9A0509AFB09AC8B0E9419 /* World */,
+			);
+			path = Scenes;
+			sourceTree = "<group>";
+		};
+		6747E4D880FD03B165CCFFDA /* Assets */ = {
+			isa = PBXGroup;
+			children = (
+				D26BE4C45055820CA368265F /* Assets/WorldArt.swift */,
+			);
+			path = Assets;
+			sourceTree = "<group>";
+		};
+		95DCA4FAD37A9AFAE210AF0B /*  */ = {
+			isa = PBXGroup;
+			children = (
+				19AD5E543C0220E084901073 /* App */,
+				6747E4D880FD03B165CCFFDA /* Assets */,
+				C57C7B36F2883B1C0B078B53 /* Core */,
+				00991AFEAAD5DEA38E69DE70 /* OfficeAdminGameTests */,
+				6120AD3F6DC20B053FDCDB49 /* Scenes */,
+			);
+			path = ;
+			sourceTree = "<group>";
+		};
+		B8C9A0509AFB09AC8B0E9419 /* Scenes/World */ = {
+			isa = PBXGroup;
+			children = (
+				59E86E30AAEFF47E877871B2 /* Scenes/World/SiteMarkerArt.swift */,
+				B78CB48157F92F3C9C2FCD82 /* Scenes/World/WorldMapView.swift */,
+				1254F677C8C35039A107E598 /* Scenes/World/WorldSceneView.swift */,
+			);
+			path = World;
+			sourceTree = "<group>";
+		};
+		C57C7B36F2883B1C0B078B53 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				357B5583311E04BA1DC195A9 /* API */,
+				08411E8E3D2FAF2D6743FC38 /* Auth */,
+				DE331609C4903539A4C722D0 /* World */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		DE331609C4903539A4C722D0 /* Core/World */ = {
+			isa = PBXGroup;
+			children = (
+				1BF96F2341A995AD74DF7098 /* Core/World/AddressGeocoder.swift */,
+				F0C2759AF689FE1C7378F0C3 /* Core/World/WorldMapper.swift */,
+				32F7AD75817E45496FB17F03 /* Core/World/WorldModels.swift */,
+			);
+			path = World;
+			sourceTree = "<group>";
+		};
+		31793280A19CDC7880B10A8E /* __products__ */ = {
+			isa = PBXGroup;
+			children = (
+				0174C0329AFC5F769145E7C6 /* OfficeAdminGame.app */,
+				5D972B2C1A195542FCC97F86 /* OfficeAdminGameTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		361FF3508AF23F4E0CB329EA /* main */ = {
+			isa = PBXGroup;
+			children = (
+				19AD5E543C0220E084901073 /* App */,
+				6747E4D880FD03B165CCFFDA /* Assets */,
+				C57C7B36F2883B1C0B078B53 /* Core */,
+				00991AFEAAD5DEA38E69DE70 /* OfficeAdminGameTests */,
+				6120AD3F6DC20B053FDCDB49 /* Scenes */,
+				31793280A19CDC7880B10A8E /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		948FBE2018990A23731D1FE5 /* OfficeAdminGame */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 33DF5AF5DD06C6E2CA5AE4AF /* Build configuration list for PBXNativeTarget "OfficeAdminGame" */;
+			buildPhases = (
+				0EEB5626A4B31C01075BD186 /* Sources */,
+				F50B6420B3D9AF98836CC9B2 /* Frameworks */,
+				CCBBDB693328ED8EE5559943 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OfficeAdminGame;
+			productName = OfficeAdminGame;
+			productReference = 0174C0329AFC5F769145E7C6 /* OfficeAdminGame.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A65431C97346FDAFDD04440D /* OfficeAdminGameTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E36BB43293AE270BE8345B90 /* Build configuration list for PBXNativeTarget "OfficeAdminGameTests" */;
+			buildPhases = (
+				B7E1012CDA841CB7B2ADDA64 /* Sources */,
+				D7BCD3C98330FDBABA0BA09E /* Frameworks */,
+				C84E34AA2C645C67B59605DD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E2D54CB9146EB7A2A1E9AFD1 /* PBXTargetDependency */,
+			);
+			name = OfficeAdminGameTests;
+			productName = OfficeAdminGameTests;
+			productReference = 5D972B2C1A195542FCC97F86 /* OfficeAdminGameTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D972CDD0DFBAC901B72B42A6 /* Project object */ = {
+			isa = PBXProject;
+			buildConfigurationList = 26E84C2B3712F7DFAC8AD93F /* Build configuration list for PBXProject "OfficeAdminGame" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 361FF3508AF23F4E0CB329EA;
+			productRefGroup = 31793280A19CDC7880B10A8E /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				948FBE2018990A23731D1FE5 /* OfficeAdminGame */,
+				A65431C97346FDAFDD04440D /* OfficeAdminGameTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CCBBDB693328ED8EE5559943 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C84E34AA2C645C67B59605DD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BCC7C0900E3A42910A3D452B /* OfficeAdminGameTests/Fixtures/approval-requests.json in Resources */,
+				BCE8D090C92DFDE6ECF9855A /* OfficeAdminGameTests/Fixtures/clock.json in Resources */,
+				D79059C809FB51D1B0E6041D /* OfficeAdminGameTests/Fixtures/contacts.json in Resources */,
+				96091C3EFCF8179CC4DABDDD /* OfficeAdminGameTests/Fixtures/invoice-summary.json in Resources */,
+				06B3CEE0E842F9832092590F /* OfficeAdminGameTests/Fixtures/invoices.json in Resources */,
+				632CADCC90FF6270CAE4AF1C /* OfficeAdminGameTests/Fixtures/projects-detail-no-coords.json in Resources */,
+				B32904076DB4B79B355978A5 /* OfficeAdminGameTests/Fixtures/projects-detail.json in Resources */,
+				79E4C22961A098F8A1F241CF /* OfficeAdminGameTests/Fixtures/projects-list.json in Resources */,
+				B99F5D9D845DDBCB23A000CD /* OfficeAdminGameTests/Fixtures/scheduled-shifts.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0EEB5626A4B31C01075BD186 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FB42805BC37D69F1D58C1FAC /* App/AppTheme.swift in Sources */,
+				977C4A41024BD35B25900522 /* App/GameStore.swift in Sources */,
+				9DA6C4A22D8377848F868C1B /* App/OfficeAdminGameApp.swift in Sources */,
+				A499682E1D839B8D40C1AAD2 /* App/RootView.swift in Sources */,
+				05C3A83394FB6D0A32C1D2EF /* Assets/WorldArt.swift in Sources */,
+				25348607EA51E78D2547E08D /* Core/API/OAClient.swift in Sources */,
+				0F803CBA8A24D5805CCD108B /* Core/API/OAWireModels.swift in Sources */,
+				AE5B59AB5AA0A0B2DD16535C /* Core/Auth/GameCredentials.swift in Sources */,
+				C061CF7ADD97129EE6E6F151 /* Core/Auth/KeychainCredentialStore.swift in Sources */,
+				F696C43C5F10492302BB477F /* Core/World/AddressGeocoder.swift in Sources */,
+				E35A868E436DBA08D86AFE9E /* Core/World/WorldMapper.swift in Sources */,
+				9DBB8965B1B2AF9761B10671 /* Core/World/WorldModels.swift in Sources */,
+				0A021E5CC17F67F81D39AB5B /* Scenes/Office/JoystickView.swift in Sources */,
+				F5AB3646637EF76F577088DD /* Scenes/Office/OfficeRealityView.swift in Sources */,
+				51D2CAB9D29287284047C048 /* Scenes/Office/OfficeSceneView.swift in Sources */,
+				82876B849D64E029C0C01B00 /* Scenes/World/SiteMarkerArt.swift in Sources */,
+				CEF18D6F6393316648733A8A /* Scenes/World/WorldMapView.swift in Sources */,
+				14E31CDC376CB2A5B981D7E5 /* Scenes/World/WorldSceneView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B7E1012CDA841CB7B2ADDA64 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				25348607EA51E78D2547E08D /* Core/API/OAClient.swift in Sources */,
+				0F803CBA8A24D5805CCD108B /* Core/API/OAWireModels.swift in Sources */,
+				AE5B59AB5AA0A0B2DD16535C /* Core/Auth/GameCredentials.swift in Sources */,
+				C061CF7ADD97129EE6E6F151 /* Core/Auth/KeychainCredentialStore.swift in Sources */,
+				F696C43C5F10492302BB477F /* Core/World/AddressGeocoder.swift in Sources */,
+				E35A868E436DBA08D86AFE9E /* Core/World/WorldMapper.swift in Sources */,
+				9DBB8965B1B2AF9761B10671 /* Core/World/WorldModels.swift in Sources */,
+				8C79FCE47298BF4BAEBF3800 /* OfficeAdminGameTests/WorldMapperTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		E2D54CB9146EB7A2A1E9AFD1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 948FBE2018990A23731D1FE5 /* OfficeAdminGame */;
+			targetProxy = 4F3E108597FBBEA4A0494ABD /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		70DCC1EB255A5F3C8D9ED349 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = "1";
+				DEAD_CODE_STRIPPING = "YES";
+				DEBUG_INFORMATION_FORMAT = "dwarf";
+				ENABLE_TESTABILITY = "YES";
+				GCC_OPTIMIZATION_LEVEL = "0";
+				MARKETING_VERSION = "0.1.0";
+				ONLY_ACTIVE_ARCH = "YES";
+				SDKROOT = "iphoneos";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		C3DCEEC1E0EB17A5583B8E94 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = "1";
+				DEAD_CODE_STRIPPING = "YES";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = "NO";
+				MARKETING_VERSION = "0.1.0";
+				SDKROOT = "iphoneos";
+				SWIFT_COMPILATION_MODE = "wholemodule";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		51380B48FA8B23D9C4F37F33 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = "NO";
+				CODE_SIGNING_REQUIRED = "NO";
+				CODE_SIGN_IDENTITY = "";
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = "YES";
+				INFOPLIST_KEY_CFBundleDisplayName = "Shaffer World";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				INFOPLIST_KEY_UILaunchScreen_Generation = "YES";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = ("UIInterfaceOrientationPortrait", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight");
+				IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.officeadmin.game";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = "NO";
+				SWIFT_VERSION = "5.0";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		69ED17C5540F17B9A95BC212 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = "NO";
+				CODE_SIGNING_REQUIRED = "NO";
+				CODE_SIGN_IDENTITY = "";
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = "YES";
+				INFOPLIST_KEY_CFBundleDisplayName = "Shaffer World";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				INFOPLIST_KEY_UILaunchScreen_Generation = "YES";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = ("UIInterfaceOrientationPortrait", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight");
+				IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.officeadmin.game";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = "NO";
+				SWIFT_VERSION = "5.0";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		7629B127E8CFDE99BA03A848 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = "NO";
+				CODE_SIGNING_REQUIRED = "NO";
+				CODE_SIGN_IDENTITY = "";
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = "YES";
+				IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.officeadmin.game.tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = "5.0";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "OfficeAdminGame";
+			};
+			name = Debug;
+		};
+		F6B83A30484A49C5E1A6F68A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = "NO";
+				CODE_SIGNING_REQUIRED = "NO";
+				CODE_SIGN_IDENTITY = "";
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = "YES";
+				IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.officeadmin.game.tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = "5.0";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "OfficeAdminGame";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		26E84C2B3712F7DFAC8AD93F /* Build configuration list for PBXProject "OfficeAdminGame" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				70DCC1EB255A5F3C8D9ED349 /* Debug */,
+				C3DCEEC1E0EB17A5583B8E94 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		33DF5AF5DD06C6E2CA5AE4AF /* Build configuration list for PBXNativeTarget "OfficeAdminGame" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				51380B48FA8B23D9C4F37F33 /* Debug */,
+				69ED17C5540F17B9A95BC212 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E36BB43293AE270BE8345B90 /* Build configuration list for PBXNativeTarget "OfficeAdminGameTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7629B127E8CFDE99BA03A848 /* Debug */,
+				F6B83A30484A49C5E1A6F68A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = D972CDD0DFBAC901B72B42A6 /* Project object */;
+}

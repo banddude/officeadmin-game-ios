@@ -2,6 +2,7 @@
 xcuserdata/
 *.xcuserstate
 DerivedData/
+.dd/
 build/
 .build/
 *.pbxuser
