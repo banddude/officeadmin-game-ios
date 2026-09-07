@@ -36,7 +36,6 @@ final class SiteAnnotationView: MKAnnotationView {
         centerOffset = CGPoint(x: 0, y: -36)   // pin the base to the coordinate
         canShowCallout = false
         collisionMode = .circle
-        label.text = nil
     }
 }
 
@@ -133,28 +132,27 @@ struct WorldMapView: UIViewRepresentable {
             let point = MKMapPoint(site.coordinate ?? CLLocationCoordinate2D(latitude: 0, longitude: 0))
             rect = rect.union(MKMapRect(x: point.x, y: point.y, width: 1, height: 1))
         }
-        guard rect != MKMapRect.null else {
+        guard !rect.isNull else {
             // No sites yet: a gentle overview while the world loads.
             map.camera = MKMapCamera(lookingAtCenter: CLLocationCoordinate2D(latitude: 34.05, longitude: -118.25),
-                                     fromDistance: 30_000, pitch: 45)
+                                     fromDistance: 30_000, pitch: 45, heading: 0)
             return
         }
         map.setVisibleMapRect(rect.insetBy(dx: -rect.width * 0.25 - 2000, dy: -rect.height * 0.25 - 2000),
                               edgePadding: UIEdgeInsets(top: 120, left: 60, bottom: 220, right: 60),
                               animated: animated)
         // Lift the camera for a 3D read of the terrain once fitted.
-        if let center = map.centerCoordinate {
-            map.setCamera(MKMapCamera(lookingAtCenter: center,
-                                      fromDistance: max(map.camera.altitude, 4_000),
-                                      pitch: 55),
-                          animated: false)
-        }
+        let center = map.centerCoordinate
+        map.setCamera(MKMapCamera(lookingAtCenter: center,
+                                  fromDistance: max(map.camera.altitude, 4_000),
+                                  pitch: 55, heading: 0),
+                      animated: false)
     }
 
     /// Travel: swoop down close over the site.
     private func fly(to site: WorldSite, in map: MKMapView) {
         guard let coordinate = site.coordinate else { return }
-        let camera = MKMapCamera(lookingAtCenter: coordinate, fromDistance: 650, pitch: 68)
+        let camera = MKMapCamera(lookingAtCenter: coordinate, fromDistance: 650, pitch: 68, heading: 0)
         map.setCamera(camera, animated: true)
     }
 }
