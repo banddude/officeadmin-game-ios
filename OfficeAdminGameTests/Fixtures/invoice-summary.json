@@ -1,0 +1,8 @@
+{
+  "totalCount": 3,
+  "outstanding": 2561125,
+  "outstandingCount": 2,
+  "overdue": 2016125,
+  "overdueCount": 1,
+  "aging": { "current": 545000, "1-30": 2016125, "31-60": 0, "61-90": 0, "91+": 0, "60+": 0 }
+}

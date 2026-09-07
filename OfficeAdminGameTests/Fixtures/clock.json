@@ -1,0 +1,88 @@
+{
+  "organizationId": "7a1f0000-0000-4000-8000-000000000001",
+  "currentUserId": "7a8b9c0d-0000-4000-8000-000000000001",
+  "isAdmin": true,
+  "employees": [
+    {
+      "memberId": "mem-0001",
+      "userId": "7a8b9c0d-0000-4000-8000-000000000001",
+      "name": "Mike Shaffer",
+      "email": "mike@shafferconstruction.com",
+      "image": null,
+      "role": "owner",
+      "employeeNumber": "",
+      "hourlyRate": 0,
+      "hasPin": true,
+      "runningEntry": {
+        "id": "entry-0001",
+        "employeeUserId": "7a8b9c0d-0000-4000-8000-000000000001",
+        "projectId": "0b1c2d3e-4f50-4a1b-8c2d-9e0f1a2b3c4d",
+        "projectName": "Kimura Residence Panel Upgrade",
+        "projectCloseoutRequirements": null,
+        "startAt": "2026-09-07T14:32:00.000Z",
+        "endAt": null,
+        "notes": null,
+        "minutes": 95,
+        "breakMinutes": 0,
+        "status": "running"
+      },
+      "owedShiftReport": null
+    },
+    {
+      "memberId": "mem-0002",
+      "userId": "7a8b9c0d-0000-4000-8000-000000000002",
+      "name": "Nick Brandon",
+      "email": "nick@shafferconstruction.com",
+      "image": null,
+      "role": "member",
+      "employeeNumber": "003",
+      "hourlyRate": 6500,
+      "hasPin": true,
+      "runningEntry": null,
+      "owedShiftReport": null
+    },
+    {
+      "memberId": "mem-0003",
+      "userId": "7a8b9c0d-0000-4000-8000-000000000003",
+      "name": "Maricar de Leon",
+      "email": "maricar@shafferconstruction.com",
+      "image": null,
+      "role": "admin",
+      "employeeNumber": "002",
+      "hourlyRate": 5200,
+      "hasPin": true,
+      "runningEntry": null,
+      "owedShiftReport": null
+    }
+  ],
+  "projects": [
+    {
+      "id": "0b1c2d3e-4f50-4a1b-8c2d-9e0f1a2b3c4d",
+      "name": "Kimura Residence Panel Upgrade",
+      "color": "#0284c7",
+      "billingType": "fixed",
+      "contactId": "c4d5e6f7-0000-4000-8000-0000000000a9",
+      "category": "Service upgrade",
+      "siteLat": 34.1017,
+      "siteLng": -118.3391,
+      "siteGeofenceRadiusMeters": 150,
+      "siteRequireGeofence": false
+    },
+    {
+      "id": "aa11bb22-cc33-4d44-8e55-ff6677889900",
+      "name": "Whitfield ADU Rough-In",
+      "color": "#0284c7",
+      "billingType": "fixed",
+      "contactId": "b7000000-0000-4000-8000-000000000007",
+      "category": null,
+      "siteLat": null,
+      "siteLng": null,
+      "siteGeofenceRadiusMeters": null,
+      "siteRequireGeofence": false
+    }
+  ],
+  "contacts": [],
+  "myShifts": [],
+  "closeoutEnforcement": "off",
+  "requireLocationOnPunch": false
+}

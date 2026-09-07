@@ -1,0 +1,138 @@
+{
+  "data": [
+    {
+      "id": "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0",
+      "organizationId": "7a1f0000-0000-4000-8000-000000000001",
+      "workflowId": "b1000000-0000-4000-8000-000000000001",
+      "entityType": "invoice",
+      "entityId": "a9000000-0000-4000-8000-000000000009",
+      "status": "pending",
+      "currentStepOrder": 1,
+      "requestedById": "d3000000-0000-4000-8000-000000000003",
+      "createdAt": "2026-09-06T18:22:31.120Z",
+      "updatedAt": "2026-09-06T18:22:31.120Z",
+      "workflow": {
+        "id": "b1000000-0000-4000-8000-000000000001",
+        "organizationId": "7a1f0000-0000-4000-8000-000000000001",
+        "name": "Large invoices",
+        "entityType": "invoice",
+        "conditions": [{ "field": "total", "operator": "gt", "value": "100000" }],
+        "isActive": true,
+        "createdAt": "2026-01-05T00:00:00.000Z",
+        "updatedAt": "2026-01-05T00:00:00.000Z",
+        "deletedAt": null,
+        "steps": [
+          {
+            "id": "e4000000-0000-4000-8000-000000000004",
+            "workflowId": "b1000000-0000-4000-8000-000000000001",
+            "stepOrder": 1,
+            "approverId": "d3000000-0000-4000-8000-000000000003",
+            "isRequired": true,
+            "approver": {
+              "id": "d3000000-0000-4000-8000-000000000003",
+              "organizationId": "7a1f0000-0000-4000-8000-000000000001",
+              "userId": "7a8b9c0d-0000-4000-8000-000000000001",
+              "role": "owner",
+              "customRoleId": null,
+              "createdAt": "2025-06-01T00:00:00.000Z",
+              "deletedAt": null,
+              "user": {
+                "id": "7a8b9c0d-0000-4000-8000-000000000001",
+                "name": "Mike Shaffer",
+                "email": "mike@shafferconstruction.com",
+                "emailVerified": null,
+                "image": null,
+                "passwordHash": null,
+                "isSiteAdmin": true,
+                "sessionRevokedAt": null,
+                "lastActiveAt": "2026-09-07T01:12:00.000Z",
+                "createdAt": "2025-06-01T00:00:00.000Z"
+              }
+            }
+          }
+        ]
+      },
+      "requestedBy": {
+        "id": "d3000000-0000-4000-8000-000000000003",
+        "organizationId": "7a1f0000-0000-4000-8000-000000000001",
+        "userId": "7a8b9c0d-0000-4000-8000-000000000001",
+        "role": "owner",
+        "customRoleId": null,
+        "createdAt": "2025-06-01T00:00:00.000Z",
+        "deletedAt": null,
+        "user": {
+          "id": "7a8b9c0d-0000-4000-8000-000000000001",
+          "name": "Mike Shaffer",
+          "email": "mike@shafferconstruction.com",
+          "emailVerified": null,
+          "image": null,
+          "passwordHash": null,
+          "isSiteAdmin": true,
+          "sessionRevokedAt": null,
+          "lastActiveAt": "2026-09-07T01:12:00.000Z",
+          "createdAt": "2025-06-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "id": "11223344-5566-4778-899a-bbccddeeff00",
+      "organizationId": "7a1f0000-0000-4000-8000-000000000001",
+      "workflowId": "b1000000-0000-4000-8000-000000000002",
+      "entityType": "purchase_order",
+      "entityId": "a9111111-0000-4000-8000-000000000011",
+      "status": "pending",
+      "currentStepOrder": 2,
+      "requestedById": "d3000000-0000-4000-8000-000000000003",
+      "createdAt": "2026-09-05T10:00:00.000Z",
+      "updatedAt": "2026-09-05T10:00:00.000Z",
+      "workflow": {
+        "id": "b1000000-0000-4000-8000-000000000002",
+        "organizationId": "7a1f0000-0000-4000-8000-000000000001",
+        "name": "Material orders",
+        "entityType": "purchase_order",
+        "conditions": [],
+        "isActive": true,
+        "createdAt": "2026-01-05T00:00:00.000Z",
+        "updatedAt": "2026-01-05T00:00:00.000Z",
+        "deletedAt": null,
+        "steps": []
+      },
+      "requestedBy": {
+        "id": "d3000000-0000-4000-8000-000000000003",
+        "organizationId": "7a1f0000-0000-4000-8000-000000000001",
+        "userId": "7a8b9c0d-0000-4000-8000-000000000003",
+        "role": "admin",
+        "customRoleId": null,
+        "createdAt": "2025-06-01T00:00:00.000Z",
+        "deletedAt": null,
+        "user": {
+          "id": "7a8b9c0d-0000-4000-8000-000000000003",
+          "name": "Maricar de Leon",
+          "email": "maricar@shafferconstruction.com",
+          "emailVerified": null,
+          "image": null,
+          "passwordHash": null,
+          "isSiteAdmin": false,
+          "sessionRevokedAt": null,
+          "lastActiveAt": null,
+          "createdAt": "2025-06-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "id": "aabbccdd-0000-4000-8000-0000000000aa",
+      "organizationId": "7a1f0000-0000-4000-8000-000000000001",
+      "workflowId": "b1000000-0000-4000-8000-000000000001",
+      "entityType": "expense",
+      "entityId": "a9222222-0000-4000-8000-000000000012",
+      "status": "approved",
+      "currentStepOrder": 1,
+      "requestedById": "d3000000-0000-4000-8000-000000000003",
+      "createdAt": "2026-09-01T09:00:00.000Z",
+      "updatedAt": "2026-09-02T09:00:00.000Z",
+      "workflow": null,
+      "requestedBy": null
+    }
+  ],
+  "pagination": { "page": 1, "limit": 50, "total": 3, "totalPages": 1 }
+}

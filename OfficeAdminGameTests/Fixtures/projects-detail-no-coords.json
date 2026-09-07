@@ -1,0 +1,31 @@
+{
+  "project": {
+    "id": "aa11bb22-cc33-4d44-8e55-ff6677889900",
+    "organizationId": "7a1f0000-0000-4000-8000-000000000001",
+    "name": "Whitfield ADU Rough-In",
+    "contactId": "b7000000-0000-4000-8000-000000000007",
+    "status": "estimating",
+    "priority": "medium",
+    "billingType": "fixed",
+    "color": "#0284c7",
+    "budget": 410000,
+    "fixedPrice": null,
+    "totalBilled": 0,
+    "currency": "USD",
+    "startDate": null,
+    "endDate": null,
+    "siteAddress": "1428 N Beverly Glen Blvd, Los Angeles, CA 90077",
+    "siteLat": null,
+    "siteLng": null,
+    "createdAt": "2026-09-01T18:02:11.000Z",
+    "updatedAt": "2026-09-05T15:40:02.000Z",
+    "contact": { "id": "b7000000-0000-4000-8000-000000000007", "name": "Dana Whitfield", "email": "dana@example.com" },
+    "members": [],
+    "tasks": [],
+    "labels": [],
+    "teams": [],
+    "milestones": [],
+    "notes": [],
+    "timeEntries": []
+  }
+}
