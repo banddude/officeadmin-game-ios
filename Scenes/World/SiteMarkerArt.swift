@@ -48,7 +48,7 @@ enum SiteMarkerArt {
             roofShine.addLine(to: CGPoint(x: 108, y: 58))
             roofShine.addLine(to: CGPoint(x: 74, y: 58))
             roofShine.close()
-            UIColor(roof).withAlphaComponent(0.75).setFill()
+            roof.withAlphaComponent(0.75).setFill()
             roofShine.fill()
 
             // Door + window
