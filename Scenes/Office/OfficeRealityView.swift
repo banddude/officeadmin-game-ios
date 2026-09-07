@@ -21,7 +21,8 @@ final class OfficeController: NSObject {
     private let anchor = AnchorEntity(world: .zero)
     private var tapGesture: UITapGestureRecognizer!
 
-    private let fovDegrees: Float = 62
+    /// Unprojection assumes the default PerspectiveCameraComponent fov (60°).
+    private let fovDegrees: Float = 60
     private var player = Entity()
     private var cameraEntity = Entity()
     private var playerFacing: Float = 0 // radians, 0 = looking toward -Z (desk)
@@ -48,15 +49,16 @@ final class OfficeController: NSObject {
         arView = ARView(frame: frame)
         super.init()
 
+        // iOS 17: non-AR mode is an ARView property, not a camera-component
+        // mode (that arrives in iOS 18). Default camera fov is ~60 degrees.
+        arView.cameraMode = .nonAR
         arView.environment.background = .color(UIColor(red: 0.62, green: 0.80, blue: 0.90, alpha: 1))
         arView.scene.addAnchor(anchor)
 
         buildRoom()
         buildLights()
 
-        var cameraComponent = PerspectiveCameraComponent()
-        cameraComponent.cameraMode = .nonAR(fieldOfViewInDegrees: CGFloat(fovDegrees))
-        cameraEntity.components.set(cameraComponent)
+        cameraEntity.components.set(PerspectiveCameraComponent())
         anchor.addChild(cameraEntity)
 
         player = makePlayer()
@@ -93,22 +95,17 @@ final class OfficeController: NSObject {
         return entity
     }
 
-    /// A paper prop (envelope, sticky, board) built from a WorldArt surface:
-    /// flat tint today, textured automatically when real art lands.
+    /// A paper prop (envelope, sticky, board) built from a WorldArt surface.
+    /// Flat tint today; when Mike's paper/signage art lands, THIS function is
+    /// the single swap point that turns surfaces into textured materials
+    /// (load via WorldArt.paperSurface, then TextureResource from the image).
     private func paperBox(_ size: SIMD3<Float>, kind: WorldArt.PaperKind,
                           at position: SIMD3<Float>,
                           rotation: Float? = nil) -> Entity {
         let entity = Entity()
         let mesh = MeshResource.generateBox(size: size)
         let surface = WorldArt.paperSurface(kind)
-        let material: SimpleMaterial
-        if let image = surface.image, let cgImage = image.cgImage,
-           let texture = try? TextureResource.generate(
-               from: cgImage, options: TextureResource.CreateOptions(semantic: .color)) {
-            material = SimpleMaterial(texture: texture, isMetallic: false)
-        } else {
-            material = SimpleMaterial(color: surface.tint, isMetallic: false)
-        }
+        let material = SimpleMaterial(color: surface.tint, isMetallic: false)
         entity.components.set(ModelComponent(mesh: mesh, materials: [material]))
         entity.position = position
         if let rotation {
@@ -117,15 +114,23 @@ final class OfficeController: NSObject {
         return entity
     }
 
+    /// A squashed sphere: iOS 17 has no short-cylinder generator, and coins,
+    /// rugs, pots and seals are all discs anyway.
+    private func disc(radius: Float, thickness: Float, color: UIColor) -> Entity {
+        let entity = Entity()
+        entity.components.set(ModelComponent(
+            mesh: MeshResource.generateSphere(radius: radius),
+            materials: [SimpleMaterial(color: color, isMetallic: false)]))
+        entity.scale = SIMD3<Float>(1, thickness / (radius * 2), 1)
+        return entity
+    }
+
     private func buildRoom() {
         // Floor + rug
         anchor.addChild(box(SIMD3(roomHalf.x * 2, 0.2, roomHalf.y * 2), floorColor,
                             at: SIMD3(0, -0.1, 0), collision: true))
-        let rug = Entity()
-        rug.components.set(ModelComponent(
-            mesh: MeshResource.generateCylinder(height: 0.03, radius: 1.7),
-            materials: [SimpleMaterial(color: UIColor(red: 0.47, green: 0.63, blue: 0.47, alpha: 1),
-                                       isMetallic: false)]))
+        let rug = disc(radius: 1.7, thickness: 0.03,
+                       color: UIColor(red: 0.47, green: 0.63, blue: 0.47, alpha: 1))
         rug.position = SIMD3(0, 0.015, 0.6)
         anchor.addChild(rug)
 
@@ -165,11 +170,8 @@ final class OfficeController: NSObject {
         addText("TODAY", at: SIMD3(-1.0, 2.2, boardZ + 0.08), height: 0.14, color: inkColor)
 
         // Plant in the corner: pot + foliage blobs
-        let pot = Entity()
-        pot.components.set(ModelComponent(
-            mesh: MeshResource.generateCylinder(height: 0.35, radius: 0.22),
-            materials: [SimpleMaterial(color: UIColor(red: 0.80, green: 0.48, blue: 0.33, alpha: 1),
-                                       isMetallic: false)]))
+        let pot = disc(radius: 0.22, thickness: 0.35,
+                       color: UIColor(red: 0.80, green: 0.48, blue: 0.33, alpha: 1))
         pot.position = SIMD3(roomHalf.x - 0.7, 0.175, -roomHalf.y + 0.7)
         anchor.addChild(pot)
         let leaf = Entity()
@@ -205,10 +207,11 @@ final class OfficeController: NSObject {
         let player = Entity()
         let body = Entity()
         body.components.set(ModelComponent(
-            mesh: MeshResource.generateCylinder(height: 1.15, radius: 0.30),
+            mesh: MeshResource.generateSphere(radius: 0.34),
             materials: [SimpleMaterial(color: UIColor(red: 0.80, green: 0.48, blue: 0.33, alpha: 1),
                                        isMetallic: false)]))
-        body.position = SIMD3(0, 0.62, 0)
+        body.scale = SIMD3<Float>(0.9, 1.7, 0.9)   // egg-shaped placeholder character
+        body.position = SIMD3(0, 0.60, 0)
         player.addChild(body)
         let head = Entity()
         head.components.set(ModelComponent(
@@ -218,11 +221,7 @@ final class OfficeController: NSObject {
         head.position = SIMD3(0, 1.42, 0)
         player.addChild(head)
         // Little cap so the player reads as "the boss"
-        let cap = Entity()
-        cap.components.set(ModelComponent(
-            mesh: MeshResource.generateCylinder(height: 0.12, radius: 0.27),
-            materials: [SimpleMaterial(color: UIColor(red: 0.24, green: 0.20, blue: 0.16, alpha: 1),
-                                       isMetallic: false)]))
+        let cap = disc(radius: 0.27, thickness: 0.12, color: inkColor)
         cap.position = SIMD3(0, 1.60, 0)
         player.addChild(cap)
         return player
@@ -284,10 +283,7 @@ final class OfficeController: NSObject {
             case .journalEntry: sealColor = UIColor(red: 0.47, green: 0.63, blue: 0.47, alpha: 1)
             case .purchaseOrder: sealColor = UIColor(red: 0.62, green: 0.80, blue: 0.90, alpha: 1)
             }
-            let seal = Entity()
-            seal.components.set(ModelComponent(
-                mesh: MeshResource.generateCylinder(height: 0.012, radius: 0.035),
-                materials: [SimpleMaterial(color: sealColor, isMetallic: false)]))
+            let seal = disc(radius: 0.035, thickness: 0.012, color: sealColor)
             seal.position = SIMD3(0.09, 0.02, 0.05)
             envelope.addChild(seal)
             envelope.name = "mail:\(item.id)"
@@ -305,11 +301,8 @@ final class OfficeController: NSObject {
         // Coin stack (outstanding receivables) on the left of the desk.
         let coinCount = min(world.money.outstandingCount, 14)
         for i in 0..<coinCount {
-            let coin = Entity()
-            coin.components.set(ModelComponent(
-                mesh: MeshResource.generateCylinder(height: 0.016, radius: 0.085),
-                materials: [SimpleMaterial(color: UIColor(red: 0.85, green: 0.66, blue: 0.27, alpha: 1),
-                                           isMetallic: true)]))
+            let coin = disc(radius: 0.085, thickness: 0.016,
+                            color: UIColor(red: 0.85, green: 0.66, blue: 0.27, alpha: 1))
             coin.position = SIMD3(-0.85 + Float(i % 2) * 0.19, 0.83 + Float(i / 2) * 0.018, -3.05)
             anchor.addChild(coin)
             dynamicEntities.append(coin)
