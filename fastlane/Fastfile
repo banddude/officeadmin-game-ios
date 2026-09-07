@@ -41,6 +41,7 @@ platform :ios do
   desc "Create the OfficeAdmin Game App Store app and App Store provisioning profile"
   lane :setup_testflight do
     api_key = asc_api_key
+    prep_keychain
 
     produce(
       app_identifier: BUNDLE_ID,
