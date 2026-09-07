@@ -83,8 +83,9 @@ class BuildFile:
         s = ""
         if self.in_resources:
             s = "settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; "
+        # Every plist object entry must terminate with };
         return (f"\t\t{self.uuid} /* {self.ref.path} in {'Resources' if self.in_resources else 'Sources'} */ = "
-                f"{{isa = PBXBuildFile; fileRef = {self.ref.uuid} /* {self.ref.path} */; {s}}}")
+                f"{{isa = PBXBuildFile; fileRef = {self.ref.uuid} /* {self.ref.path} */; {s}}};")
 
 
 class Group:
