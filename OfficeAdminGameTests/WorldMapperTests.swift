@@ -17,7 +17,10 @@ final class WorldMapperTests: XCTestCase {
     private let now = OAWire.parseISO("2026-09-07T16:30:00.000Z")!
 
     private lazy var inputs: WorldInputs = WorldInputs(
-        projectDetails: [fixture("projects-detail"), fixture("projects-detail-no-coords")],
+        projectDetails: [
+            load("projects-detail", as: OAProjectDetailEnvelope.self).project,
+            load("projects-detail-no-coords", as: OAProjectDetailEnvelope.self).project,
+        ],
         shifts: load("scheduled-shifts", as: OAScheduledShiftsEnvelope.self).shifts,
         clock: load("clock", as: OAClockSnapshot.self),
         approvals: load("approval-requests", as: OAPaginated<OAApprovalRequest>.self).data,
@@ -39,7 +42,7 @@ final class WorldMapperTests: XCTestCase {
     }
 
     func testProjectDetailDecodesStringCoordinates() throws {
-        let detail: OAProjectDetail = fixture("projects-detail")
+        let detail = load("projects-detail", as: OAProjectDetailEnvelope.self).project
         XCTAssertEqual(detail.siteLat, 34.1017, "numeric columns arrive as strings")
         XCTAssertEqual(detail.siteLng, -118.3391)
         XCTAssertEqual(detail.siteAddress, "1840 N Highland Ave, Los Angeles, CA 90028")
