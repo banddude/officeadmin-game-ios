@@ -1,0 +1,99 @@
+default_platform(:ios)
+
+API_KEY_ID    = "648T4ZFBK4"
+API_ISSUER_ID = "0f46b7ee-3ca3-47c0-a1e5-567cd69a6f2b"
+API_KEY_PATH  = "#{ENV["HOME"]}/.appstoreconnect/private_keys/AuthKey_648T4ZFBK4.p8"
+TEAM_ID       = "6D4T7VB2AF"
+
+IOSAPP_DIR   = "#{ENV["HOME"]}/agent-worktrees/officeadmin-game-ios-tf"
+PROJECT_PATH = "#{IOSAPP_DIR}/OfficeAdminGame.xcodeproj"
+ARCHIVE_PATH = "#{IOSAPP_DIR}/build/OfficeAdminGame.xcarchive"
+IPA_PATH     = "#{IOSAPP_DIR}/build/OfficeAdminGame.ipa"
+
+DIST_CERT     = "Apple Distribution: Michael Shaffer (6D4T7VB2AF)"
+STORE_PROFILE = "OfficeAdmin Game Store Apple Dist"
+BUNDLE_ID     = "com.officeadmin.game"
+APP_NAME      = "OfficeAdmin Game"
+APP_SKU       = "officeadmin-game"
+
+BUILD_KEYCHAIN = "#{ENV["HOME"]}/Library/Keychains/aiva-build.keychain-db"
+
+platform :ios do
+  private_lane :asc_api_key do
+    app_store_connect_api_key(
+      key_id: API_KEY_ID,
+      issuer_id: API_ISSUER_ID,
+      key_filepath: API_KEY_PATH,
+      in_house: false
+    )
+  end
+
+  private_lane :prep_keychain do
+    password = ENV["AIVA_BUILD_KEYCHAIN_PASSWORD"]
+    UI.user_error!("AIVA_BUILD_KEYCHAIN_PASSWORD is required") if password.to_s.empty?
+
+    sh("security unlock-keychain -p #{password.shellescape} #{BUILD_KEYCHAIN.shellescape}")
+    sh("security set-key-partition-list -S apple-tool:,apple:,codesign: -k #{password.shellescape} #{BUILD_KEYCHAIN.shellescape} >/dev/null 2>&1 || true")
+    sh("security list-keychains -d user -s #{BUILD_KEYCHAIN.shellescape} #{ENV["HOME"]}/Library/Keychains/login.keychain-db")
+    sh("security find-identity -v -p codesigning #{BUILD_KEYCHAIN.shellescape} | grep -F #{DIST_CERT.shellescape}")
+  end
+
+  desc "Create the OfficeAdmin Game App Store app and App Store provisioning profile"
+  lane :setup_testflight do
+    api_key = asc_api_key
+
+    produce(
+      app_identifier: BUNDLE_ID,
+      app_name: APP_NAME,
+      sku: APP_SKU,
+      language: "en-US",
+      app_version: "0.1.0",
+      platform: "ios",
+      team_id: TEAM_ID
+    )
+
+    sigh(
+      app_identifier: BUNDLE_ID,
+      api_key: api_key,
+      team_id: TEAM_ID,
+      provisioning_name: STORE_PROFILE,
+      ignore_profiles_with_different_name: true,
+      filename: "OfficeAdminGameStore.mobileprovision",
+      output_path: "#{IOSAPP_DIR}/build/signing",
+      skip_install: false
+    )
+  end
+
+  desc "Build and upload OfficeAdmin Game to TestFlight"
+  lane :beta do
+    asc_api_key
+    prep_keychain
+
+    build_number = Time.now.strftime("%Y%m%d%H%M")
+    increment_build_number(
+      xcodeproj: PROJECT_PATH,
+      build_number: build_number
+    )
+    UI.important("CURRENT_PROJECT_VERSION = #{build_number}")
+
+    build_app(
+      project: PROJECT_PATH,
+      scheme: "OfficeAdminGame",
+      configuration: "Release",
+      clean: true,
+      skip_package_ipa: true,
+      skip_archive: false,
+      archive_path: ARCHIVE_PATH,
+      xcargs: "OTHER_CODE_SIGN_FLAGS=\"--keychain #{BUILD_KEYCHAIN}\""
+    )
+
+    sh("rm -rf /tmp/oag_pack && mkdir -p /tmp/oag_pack/Payload")
+    sh("ditto \"#{ARCHIVE_PATH}/Products/Applications/OfficeAdminGame.app\" /tmp/oag_pack/Payload/OfficeAdminGame.app")
+    sh("xattr -cr /tmp/oag_pack/Payload/OfficeAdminGame.app")
+    sh("cd /tmp/oag_pack && ditto -c -k --norsrc --noextattr --keepParent Payload \"#{IPA_PATH}\"")
+    UI.success("Packaged IPA at #{IPA_PATH} (build #{build_number})")
+
+    sh("xcrun altool --upload-app --type ios -f #{IPA_PATH.shellescape} --apiKey #{API_KEY_ID} --apiIssuer #{API_ISSUER_ID}")
+    UI.success("Uploaded OfficeAdmin Game build #{build_number} to App Store Connect")
+  end
+end
