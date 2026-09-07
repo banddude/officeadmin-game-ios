@@ -41,14 +41,14 @@ enum SiteMarkerArt {
             roofPath.addLine(to: CGPoint(x: 74, y: 30))
             roofPath.addLine(to: CGPoint(x: 108, y: 58))
             roofPath.close()
-            roof.setFill(UIColor(roof))
+            UIColor(roof).setFill()
             roofPath.fill()
             let roofShine = UIBezierPath()
             roofShine.move(to: CGPoint(x: 74, y: 30))
             roofShine.addLine(to: CGPoint(x: 108, y: 58))
             roofShine.addLine(to: CGPoint(x: 74, y: 58))
             roofShine.close()
-            roofShine.setFill(UIColor(roof).withAlphaComponent(0.75))
+            UIColor(roof).withAlphaComponent(0.75).setFill()
             roofShine.fill()
 
             // Door + window
@@ -74,8 +74,9 @@ enum SiteMarkerArt {
                 cg.fillEllipse(in: CGRect(x: body.minX + 1, y: body.minY - 9, width: 9, height: 9))
                 let shirt = [UIColor(Theme.clay), UIColor(Theme.sage),
                              UIColor(Theme.sky), UIColor(Theme.honey)][i % 4]
-                cg.setFillColor(shirt.cgColor)
-                cg.fill(roundedRect: body, cornerWidth: 5, cornerHeight: 5)
+                let bodyPath = UIBezierPath(roundedRect: body, cornerRadius: 5)
+                shirt.setFill()
+                bodyPath.fill()
             }
             if crewCount > 4 {
                 drawTag(text: "+\(crewCount - 4)", in: CGRect(x: 114, y: 106, width: 30, height: 18),
