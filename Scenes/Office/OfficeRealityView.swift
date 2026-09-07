@@ -18,6 +18,7 @@ import UIKit
 
 final class OfficeController: NSObject {
     let arView: ARView
+    private let artProvider: any WorldArtProviding
     private let anchor = AnchorEntity(world: .zero)
     private var tapGesture: UITapGestureRecognizer!
 
@@ -45,7 +46,8 @@ final class OfficeController: NSObject {
     private let roomHalf: SIMD2<Float> = SIMD2(5.0, 4.0)
     private let wallT: Float = 0.15
 
-    init(frame: CGRect) {
+    init(frame: CGRect, artProvider: any WorldArtProviding = WorldArt.provider) {
+        self.artProvider = artProvider
         arView = ARView(frame: frame)
         super.init()
 
@@ -95,17 +97,22 @@ final class OfficeController: NSObject {
         return entity
     }
 
-    /// A paper prop (envelope, sticky, board) built from a WorldArt surface.
-    /// Flat tint today; when Mike's paper/signage art lands, THIS function is
-    /// the single swap point that turns surfaces into textured materials
-    /// (load via WorldArt.paperSurface, then TextureResource from the image).
-    private func paperBox(_ size: SIMD3<Float>, kind: WorldArt.PaperKind,
+    /// A paper, sign, or decal prop built only from the injected art provider.
+    private func paperBox(_ size: SIMD3<Float>, kind: WorldArt.SurfaceKind,
                           at position: SIMD3<Float>,
                           rotation: Float? = nil) -> Entity {
         let entity = Entity()
         let mesh = MeshResource.generateBox(size: size)
-        let surface = WorldArt.paperSurface(kind)
-        let material = SimpleMaterial(color: surface.tint, isMetallic: false)
+        let surface = artProvider.surface(kind)
+        let material: SimpleMaterial
+        if let image = surface.image, let cgImage = image.cgImage,
+           let texture = try? TextureResource.generate(
+               from: cgImage,
+               options: TextureResource.CreateOptions(semantic: .color)) {
+            material = SimpleMaterial(texture: texture, isMetallic: false)
+        } else {
+            material = SimpleMaterial(color: surface.tint, isMetallic: false)
+        }
         entity.components.set(ModelComponent(mesh: mesh, materials: [material]))
         entity.position = position
         if let rotation {
@@ -165,7 +172,7 @@ final class OfficeController: NSObject {
         let boardZ: Float = -roomHalf.y + t / 2 + 0.05
         anchor.addChild(box(SIMD3(2.6, 1.5, 0.05), woodColor,
                             at: SIMD3(-0.0, 1.7, boardZ + 0.01)))
-        anchor.addChild(paperBox(SIMD3(2.44, 1.34, 0.04), kind: .whiteboard,
+        anchor.addChild(paperBox(SIMD3(2.44, 1.34, 0.04), kind: .officeWhiteboard,
                                  at: SIMD3(0, 1.7, boardZ + 0.045)))
         addText("TODAY", at: SIMD3(-1.0, 2.2, boardZ + 0.08), height: 0.14, color: inkColor)
 
@@ -433,9 +440,10 @@ final class OfficeController: NSObject {
 struct OfficeRealityView: UIViewRepresentable {
     let world: WorldState
     let onTapMail: (String) -> Void
+    var artProvider: any WorldArtProviding = WorldArt.provider
 
     func makeCoordinator() -> OfficeController {
-        OfficeController(frame: .zero)
+        OfficeController(frame: .zero, artProvider: artProvider)
     }
 
     func makeUIView(context: Context) -> ARView {

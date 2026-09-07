@@ -12,8 +12,10 @@ enum SiteMarkerArt {
 
     /// Draw one site marker. `crewCount` little figures stand at the base
     /// (capped, with +N when more). Cached per key — maps redraw constantly.
-    static func marker(phase: WorldSite.Phase, name: String, crewCount: Int, urgent: Bool) -> UIImage {
-        let key = "\(phase.rawValue)|\(name)|\(crewCount)|\(urgent)"
+    static func marker(phase: WorldSite.Phase, name: String, crewCount: Int, urgent: Bool,
+                       artProvider: any WorldArtProviding = WorldArt.provider) -> UIImage {
+        let providerID = ObjectIdentifier(artProvider)
+        let key = "\(providerID)|\(phase.rawValue)|\(name)|\(crewCount)|\(urgent)"
         if let cached = cache.object(forKey: key as NSString) { return cached }
 
         let size = CGSize(width: 148, height: 168)
@@ -60,7 +62,7 @@ enum SiteMarkerArt {
             // Attention badge for sites with waiting mail — art via the
             // WorldArt hook (Mike's sprite drops in later, no change here).
             if urgent {
-                let badge = WorldArt.attentionSprite(.approval, side: 44)
+                let badge = artProvider.attentionSprite(.approval, side: 44)
                 badge.draw(at: CGPoint(x: 100, y: 2))
             }
 
