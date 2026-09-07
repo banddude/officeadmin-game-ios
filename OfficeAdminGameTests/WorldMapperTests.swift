@@ -14,7 +14,7 @@ final class WorldMapperTests: XCTestCase {
     // Fixture "now": 2026-09-07 16:30 UTC — Mike is clocked in (started
     // 14:32Z), Nick's 15:00Z shift is underway, Kimura's invoice is 11 days
     // overdue, Whitfield's is due in 3 days.
-    private let now = date("2026-09-07T16:30:00.000Z")!
+    private let now = OAWire.parseISO("2026-09-07T16:30:00.000Z")!
 
     private lazy var inputs: WorldInputs = WorldInputs(
         projectDetails: [fixture("projects-detail"), fixture("projects-detail-no-coords")],
@@ -48,7 +48,7 @@ final class WorldMapperTests: XCTestCase {
 
     func testTimestampsWithMillisecondsDecode() throws {
         let approvals = load("approval-requests", as: OAPaginated<OAApprovalRequest>.self).data
-        XCTAssertEqual(approvals[0].createdAt, date("2026-09-06T18:22:31.120Z"))
+        XCTAssertEqual(approvals[0].createdAt, OAWire.parseISO("2026-09-06T18:22:31.120Z"))
     }
 
     // MARK: Sites
@@ -191,7 +191,4 @@ final class WorldMapperTests: XCTestCase {
         return try Data(contentsOf: url)
     }
 
-    private static func date(_ iso: String) -> Date? {
-        OAWire.parseISO(iso)
-    }
 }
