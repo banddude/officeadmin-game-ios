@@ -186,18 +186,6 @@
 			path = Assets;
 			sourceTree = "<group>";
 		};
-		95DCA4FAD37A9AFAE210AF0B /*  */ = {
-			isa = PBXGroup;
-			children = (
-				19AD5E543C0220E084901073 /* App */,
-				6747E4D880FD03B165CCFFDA /* Assets */,
-				C57C7B36F2883B1C0B078B53 /* Core */,
-				00991AFEAAD5DEA38E69DE70 /* OfficeAdminGameTests */,
-				6120AD3F6DC20B053FDCDB49 /* Scenes */,
-			);
-			path = ;
-			sourceTree = "<group>";
-		};
 		B8C9A0509AFB09AC8B0E9419 /* Scenes/World */ = {
 			isa = PBXGroup;
 			children = (

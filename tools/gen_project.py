@@ -124,8 +124,9 @@ def build_groups(files):
         if dirpath not in groups:
             g = Group(dirpath)
             groups[dirpath] = g
-            if dirpath != "":
-                parent = group_for(os.path.dirname(dirpath))
+            parent_path = os.path.dirname(dirpath)
+            if parent_path and parent_path != dirpath:
+                parent = group_for(parent_path)
                 parent.children.append((g.uuid, g.path))
         return groups[dirpath]
 
