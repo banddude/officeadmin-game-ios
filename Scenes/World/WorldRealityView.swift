@@ -65,7 +65,7 @@ final class WorldGameController: NSObject {
 
     // Camera
     private var cameraEntity = Entity()
-    private let cameraOffset = SIMD3<Float>(0, 16.5, 11.5)
+    private let cameraOffset = SIMD3<Float>(0, 24, 14)
 
     // Signals to SwiftUI
     var moveInput = SIMD2<Float>.zero         // x east, y forward (north)
@@ -157,7 +157,7 @@ final class WorldGameController: NSObject {
             // First layout: the player starts beside the office path, facing
             // the world (north), clear of the door's trigger zone.
             hasPlacedPlayer = true
-            playerBoardPosition = SIMD2(board.officeDoorPoint.x - 3.4,
+            playerBoardPosition = SIMD2(board.officeDoorPoint.x - 6.5,
                                         board.walkableRect.maxY - 0.2)
             player.position = boardPoint(playerBoardPosition)
             player.orientation = simd_quatf(angle: playerYaw, axis: [0, 1, 0])
@@ -420,7 +420,9 @@ final class WorldGameController: NSObject {
             let blend = 1 - exp(-4.5 * dt)
             cameraEntity.position = cameraEntity.position + (desired - cameraEntity.position) * blend
         }
-        cameraEntity.look(at: boardPoint(playerBoardPosition) + SIMD3(0, 1.1, 0),
+        // Aim north of the player so the board ahead fills the frame and the
+        // horizon sits near the top edge, like the mockup's diorama view.
+        cameraEntity.look(at: boardPoint(playerBoardPosition) + SIMD3(0, 0.9, -6),
                           from: cameraEntity.position, relativeTo: nil)
     }
 
