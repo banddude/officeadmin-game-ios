@@ -126,9 +126,10 @@ final class WorldBoardTests: XCTestCase {
     // MARK: - Geography-preserving spread
 
     /// Real CA spread (Bay Area to San Diego): after the board makes it
-    /// walkable, each site still lies in its true direction from the map's
-    /// center — the bearings that make the world read "where each job is in
-    /// CA" survive the scaling and the overlap spread.
+    /// walkable, far-flung sites keep the DIRECTION of their true positions
+    /// from the map's center (the bearings that make the world read "where
+    /// each job is in CA"), every building stays near its true projected
+    /// point, and nothing interpenetrates.
     func testBearingsSurviveSpreading() throws {
         let sites = [
             site("novato", lat: 38.11, lng: -122.57),      // far north-west
@@ -144,7 +145,8 @@ final class WorldBoardTests: XCTestCase {
         ]
         let board = WorldBoard(sites: sites)
 
-        // The board's own center for the site cloud, in Mercator terms.
+        // Mirror the board's own fit math to know each site's TRUE projected
+        // point and the cloud's Mercator centroid.
         let coords = sites.compactMap(\.coordinate)
         let lat = coords.map(\.latitude).reduce(0, +) / Double(coords.count)
         let lng = coords.map(\.longitude).reduce(0, +) / Double(coords.count)
@@ -153,27 +155,54 @@ final class WorldBoardTests: XCTestCase {
                               -WorldBoard.size.y / 2 + WorldBoard.padding)
         let regionMax = SIMD2(WorldBoard.size.x / 2 - WorldBoard.padding,
                               WorldBoard.size.y / 2 - WorldBoard.padding)
-        let boardCenter = (regionMin + regionMax) / 2
+        let regionCenter = (regionMin + regionMax) / 2
+        let usable = regionMax - regionMin - SIMD2(WorldBoard.fitMargin * 2, WorldBoard.fitMargin * 2)
+        let meters = sites.map { WorldBoard.mercatorMeters($0.coordinate!) - centroid }
+        var lo = SIMD2<Double>.zero, hi = SIMD2<Double>.zero
+        for m in meters {
+            lo = simd_min(lo, SIMD2<Double>(m)); hi = simd_max(hi, SIMD2<Double>(m))
+        }
+        let span = hi - lo
+        let scale = min(usable.x / Float(max(span.x, 0.001)),
+                        usable.y / Float(max(span.y, 0.001)), 12)
+        // The fit seats the cloud's bounding-box center (not its centroid) at
+        // the region center, with board y south.
+        let cloudCenter = (lo + hi) / 2
+        let anchors = Dictionary(uniqueKeysWithValues: meters.enumerated().map { i, m in
+            (sites[i].id, regionCenter + SIMD2<Float>(m - cloudCenter) * scale * SIMD2<Float>(1, -1))
+        })
 
-        for s in sites {
+        // Far-flung sites anchor the map: their direction from the center is
+        // the true one (a full bearing may slide a site outward along itself,
+        // so allow a rim's worth of bend).
+        let far = ["novato", "sanjose", "coalinga", "fowler", "simi", "sandiego"]
+        for s in sites where far.contains(s.id) {
             let p = try XCTUnwrap(board.sitePositions[s.id], "\(s.id) placed")
             let m = WorldBoard.mercatorMeters(s.coordinate!)
-            // Board y is south, so the true board bearing negates Mercator y.
-            let trueBearing = Float(atan2(-(m.y - centroid.y), m.x - centroid.x))
-            let boardBearing = atan2(p.y - boardCenter.y, p.x - boardCenter.x)
+            let trueBearing = Float(atan2(-(m.y - cloudCenter.y), m.x - cloudCenter.x))
+            let boardBearing = atan2(p.y - regionCenter.y, p.x - regionCenter.x)
             var delta = abs(boardBearing - trueBearing)
             if delta > .pi { delta = 2 * .pi - delta }
-            // The layout clamp can bend rim sites a little; the middle of the
-            // map stays honest. Downtown/Palisades/Downey/SantaAna are the
-            // interior — they must keep their bearings almost exactly.
-            let interior = ["downtown", "palisades", "downey", "santaana", "simi"]
-            let tolerance: Float = interior.contains(s.id) ? 0.10 : 0.45
-            XCTAssertLessThan(delta, tolerance, "\(s.id) keeps its true bearing (delta \(delta))")
+            XCTAssertLessThan(delta, 0.30, "\(s.id) keeps its true bearing (delta \(delta))")
         }
 
-        // And no two buildings interpenetrate anywhere (the same guarantee the
-        // original packer's tests hold: buildings never overlap; the 1.1m
-        // aesthetic gap is a target the rim clamp may shave, not an invariant).
+        // Every building stays within a reasonable walk of where the
+        // geography puts it, and inside the layout rect.
+        let layoutMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
+                              -WorldBoard.size.y / 2 + 3.0)
+        let layoutMax = WorldBoard.size / 2 - SIMD2(Float(3.0), Float(3.0))
+        for s in sites {
+            let p = try XCTUnwrap(board.sitePositions[s.id], "\(s.id) placed")
+            let anchor = try XCTUnwrap(anchors[s.id])
+            XCTAssertLessThan(simd_distance(p, anchor), 24,
+                              "\(s.id) stays near its true point")
+            XCTAssertGreaterThan(p.x, layoutMin.x - 0.5, "\(s.id) in layout")
+            XCTAssertLessThan(p.x, layoutMax.x + 0.5, "\(s.id) in layout")
+            XCTAssertGreaterThan(p.y, layoutMin.y - 0.5, "\(s.id) in layout")
+            XCTAssertLessThan(p.y, layoutMax.y + 0.5, "\(s.id) in layout")
+        }
+
+        // And no two buildings interpenetrate anywhere.
         let rects = board.buildingFootprints.values.map { $0 }
         for i in rects.indices {
             for j in i + 1..<rects.count {

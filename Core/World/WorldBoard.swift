@@ -238,15 +238,25 @@ struct WorldBoard {
         return CLLocationCoordinate2D(latitude: lat, longitude: lng)
     }
 
-    /// Resolve building overlaps WITHOUT re-shuffling the map. Every building
-    /// keeps the BEARING of its true projected position from the board center
-    /// and may only slide outward along that bearing until it clears the
-    /// buildings (and the office lot) already placed — so relative geography,
-    /// directions and neighbor ordering survive being made walkable: a dense
-    /// metro cluster blooms radially around its true spot instead of being
-    /// re-packed into a generic village. Deterministic: sites are placed
-    /// farthest-from-center first, so outer truth anchors the rim and inner
-    /// sites fill in behind it without ever crossing a placed neighbor.
+    /// Resolve building overlaps WITHOUT re-shuffling the map. Two rules,
+    /// in order:
+    ///
+    /// 1. BEARING FIRST: a building may slide outward along the bearing of
+    ///    its true projected position from the board center until its
+    ///    clearance circle clears everything already placed — so directions
+    ///    and neighbor ordering survive being made walkable, and a dense
+    ///    metro cluster blooms radially instead of being re-packed into a
+    ///    generic village.
+    /// 2. NEAREST FREE SPOT: a bearing that fills to the rim falls back to a
+    ///    deterministic spiral around the site's TRUE projected point — the
+    ///    minimum displacement from where the geography says it belongs.
+    ///
+    /// Clearance circles use the box half-diagonal, which contains the
+    /// axis-aligned box in any orientation: two circles that clear each other
+    /// (plus the gap) leave their boxes disjoint, so overlaps are impossible
+    /// by construction — there is no re-packing pass to bend geography.
+    /// Deterministic: sites are placed farthest-from-center first (outer truth
+    /// anchors the rim), ties break by id, and the spiral steps are fixed.
     private static func spreadAlongBearings(_ rects: inout [String: BoardRect],
                                             anchors: [String: SIMD2<Float>],
                                             around center: SIMD2<Float>,
@@ -255,17 +265,22 @@ struct WorldBoard {
                               -WorldBoard.size.y / 2 + 3.0)
         let layoutMax = WorldBoard.size / 2 - SIMD2(Float(3.0), Float(3.0))
 
-        // Clearance circles at the box HALF-DIAGONAL: a circle of that radius
-        // contains the axis-aligned box in any orientation, so two circles
-        // that clear each other (plus the gap) leave their boxes disjoint —
-        // the bearing each site fanned out on is exactly the bearing it keeps,
-        // and the polish pass below only ever handles clamp-induced contacts.
         func circleRadius(_ r: BoardRect) -> Float {
             simd_length(r.halfExtents) + WorldBoard.buildingGap / 2
         }
+        // The office lot participates as an obstacle from the start.
         var placed: [(center: SIMD2<Float>, radius: Float)] = [
             (office.center, circleRadius(office))
         ]
+
+        func isFree(_ c: SIMD2<Float>, _ rect: BoardRect) -> Bool {
+            guard c.x - rect.halfExtents.x >= layoutMin.x,
+                  c.x + rect.halfExtents.x <= layoutMax.x,
+                  c.y - rect.halfExtents.y >= layoutMin.y,
+                  c.y + rect.halfExtents.y <= layoutMax.y else { return false }
+            let radius = circleRadius(rect)
+            return placed.allSatisfy { simd_distance($0.center, c) >= $0.radius + radius }
+        }
 
         let order = rects.keys.sorted {
             let da = simd_distance(anchors[$0] ?? center, center)
@@ -275,111 +290,59 @@ struct WorldBoard {
 
         for id in order {
             guard let rect = rects[id] else { continue }
-            var dir = (anchors[id] ?? center) - center
-            var radius0 = simd_length(dir)
-            if radius0 < 0.001 {
-                // The exact centroid: give it a deterministic bearing (golden
-                // angle by placement order) so it fans out like the rest.
+            let anchor = anchors[id] ?? center
+
+            // Rule 1: outward along the true bearing.
+            var dir = anchor - center
+            var distance0 = simd_length(dir)
+            if distance0 < 0.001 {
+                // The exact centroid: a deterministic bearing (golden angle
+                // by placement order) so it fans out like the rest.
                 let index = Float(order.firstIndex(of: id) ?? 0)
                 dir = SIMD2(cos(index * 2.399_963), sin(index * 2.399_963))
-                radius0 = 0.001
+                distance0 = 0.001
             }
-            let u = dir / radius0
-            let radius = circleRadius(rect)
-
-            // Slide outward along the true bearing until the circle clears
-            // everything already placed (bounded walk; the layout clamp below
-            // catches a bearing that is full to the rim).
-            var r = radius0
-            for _ in 0..<600 where r < 300 {
+            let u = dir / distance0
+            var spot: SIMD2<Float>? = nil
+            var r = distance0
+            while r < 400 {
                 let c = center + u * r
-                let blocked = placed.contains {
-                    simd_distance($0.center, c) < $0.radius + radius
+                if !isFree(c, rect) {
+                    // Stop when the whole box has left the board on this ray.
+                    let offBoard = c.x + rect.halfExtents.x < layoutMin.x ||
+                        c.x - rect.halfExtents.x > layoutMax.x ||
+                        c.y + rect.halfExtents.y < layoutMin.y ||
+                        c.y - rect.halfExtents.y > layoutMax.y
+                    if offBoard { break }
+                    r += 0.25
+                } else {
+                    spot = c
+                    break
                 }
-                if !blocked { break }
-                r += 0.25
             }
-            var c = center + u * r
-            c = SIMD2(min(max(c.x, layoutMin.x + rect.halfExtents.x), layoutMax.x - rect.halfExtents.x),
-                      min(max(c.y, layoutMin.y + rect.halfExtents.y), layoutMax.y - rect.halfExtents.y))
-            rects[id]?.center = c
-            placed.append((c, radius))
-        }
 
-        // Polish: circles at 1.25x plus the layout clamp can let box corners
-        // graze. Resolve residual overlaps with minimal axis-aligned shoves,
-        // starting from a geography-true layout, so the nudges stay tiny.
-        WorldBoard.separate(&rects, from: office)
-    }
-
-    /// Push building footprints apart (and away from the office) until they
-    /// clear each other by `buildingGap`. Deterministic: pairs are visited
-    /// in id order and nudged along the short axis each time.
-    private static func separate(_ rects: inout [String: BoardRect], from office: BoardRect) {
-        let ids = rects.keys.sorted()
-        let layoutMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
-                              -WorldBoard.size.y / 2 + 3.0)
-        let layoutMax = WorldBoard.size / 2 - SIMD2(Float(3.0), Float(3.0))
-        for _ in 0..<14 {
-            var movedAnything = false
-            for i in ids.indices {
-                for j in i + 1..<ids.count {
-                    guard let a = rects[ids[i]], let b = rects[ids[j]] else { continue }
-                    if !a.overlaps(b, gap: WorldBoard.buildingGap) { continue }
-                    var separation = WorldBoard.separationVector(a: a, b: b,
-                                                                  gap: WorldBoard.buildingGap)
-                    if separation == .zero {
-                        // Perfectly stacked sites: part them deterministically.
-                        separation = SIMD2(a.halfExtents.x + b.halfExtents.x + WorldBoard.buildingGap, 0)
+            // Rule 2: nearest free spot around the true projected point.
+            if spot == nil {
+                var ring: Float = 0.5
+                search: while ring <= 40 {
+                    let spokes = max(8, Int(ring * 2))
+                    for k in 0..<spokes {
+                        let a = Float(k) / Float(spokes) * 2 * .pi + ring * 0.35
+                        let c = anchor + SIMD2(cos(a), sin(a)) * ring
+                        if isFree(c, rect) { spot = c; break search }
                     }
-                    rects[ids[i]]?.center -= separation / 2
-                    rects[ids[j]]?.center += separation / 2
-                    movedAnything = true
+                    ring += 0.5
                 }
             }
-            // Keep the office corner sacred: shove sites out of its lot. Each
-            // escape axis flips when it would shove the site off the board —
-            // on a narrow board there isn't always room on the obvious side.
-            for id in ids {
-                guard var rect = rects[id], rect.overlaps(office, gap: WorldBoard.buildingGap) else { continue }
-                var separation = WorldBoard.separationVector(a: rect, b: office,
-                                                              gap: WorldBoard.buildingGap)
-                if separation == .zero {
-                    separation = SIMD2(-(rect.halfExtents.x + office.halfExtents.x + WorldBoard.buildingGap), 0)
-                }
-                if rect.center.x + separation.x + rect.halfExtents.x > layoutMax.x ||
-                    rect.center.x + separation.x - rect.halfExtents.x < layoutMin.x {
-                    separation.x = -separation.x
-                }
-                if rect.center.y + separation.y + rect.halfExtents.y > layoutMax.y ||
-                    rect.center.y + separation.y - rect.halfExtents.y < layoutMin.y {
-                    separation.y = -separation.y
-                }
-                rect.center += separation
-                rects[id] = rect
-                movedAnything = true
-            }
-            // And on the board itself.
-            for id in ids {
-                guard var rect = rects[id] else { continue }
-                let clamped = BoardRect(
-                    min: simd_max(SIMD2(rect.minX, rect.minY), layoutMin),
-                    max: simd_min(SIMD2(rect.maxX, rect.maxY), layoutMax))
-                if clamped.center != rect.center { movedAnything = true }
-                rect.center = clamped.center
-                rects[id] = rect
-            }
-            if !movedAnything { break }
-        }
-    }
 
-    /// How much to move `b` along each axis so it clears `a` (positive values).
-    private static func separationVector(a: BoardRect, b: BoardRect, gap: Float) -> SIMD2<Float> {
-        let dx = a.halfExtents.x + b.halfExtents.x + gap - abs(b.center.x - a.center.x)
-        let dy = a.halfExtents.y + b.halfExtents.y + gap - abs(b.center.y - a.center.y)
-        let signX: Float = b.center.x >= a.center.x ? 1 : -1
-        let signY: Float = b.center.y >= a.center.y ? 1 : -1
-        return SIMD2(max(dx, 0) * signX, max(dy, 0) * signY)
+            // A board with no free spot left (dozens more sites than today):
+            // clamp the true point and let the geometry be as honest as it can.
+            let c = spot ?? SIMD2(
+                min(max(anchor.x, layoutMin.x + rect.halfExtents.x), layoutMax.x - rect.halfExtents.x),
+                min(max(anchor.y, layoutMin.y + rect.halfExtents.y), layoutMax.y - rect.halfExtents.y))
+            rects[id]?.center = c
+            placed.append((c, circleRadius(rect)))
+        }
     }
 }
 
