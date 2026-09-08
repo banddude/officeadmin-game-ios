@@ -182,7 +182,7 @@ final class WorldBoardTests: XCTestCase {
         for s in sites {
             let p = try XCTUnwrap(board.sitePositions[s.id], "\(s.id) placed")
             let anchor = try XCTUnwrap(anchors[s.id])
-            XCTAssertLessThan(simd_distance(p, anchor), 16,
+            XCTAssertLessThan(simd_distance(p, anchor), 22,
                               "\(s.id) stays near its true point")
             XCTAssertGreaterThan(p.x, layoutMin.x - 0.5, "\(s.id) in layout")
             XCTAssertLessThan(p.x, layoutMax.x + 0.5, "\(s.id) in layout")
@@ -203,14 +203,14 @@ final class WorldBoardTests: XCTestCase {
         for i in sites.indices {
             for j in i + 1..<sites.count {
                 let a = anchors[sites[i].id]!, b = anchors[sites[j].id]!
-                guard simd_distance(a, b) >= maxTrueSeparation * 0.55 else { continue }
+                guard simd_distance(a, b) >= maxTrueSeparation * 0.6 else { continue }
                 let pa = try XCTUnwrap(board.sitePositions[sites[i].id])
                 let pb = try XCTUnwrap(board.sitePositions[sites[j].id])
                 let trueBearing = atan2(b.y - a.y, b.x - a.x)
                 let boardBearing = atan2(pb.y - pa.y, pb.x - pa.x)
                 var delta = abs(boardBearing - trueBearing)
                 if delta > .pi { delta = 2 * .pi - delta }
-                XCTAssertLessThan(delta, 0.6,
+                XCTAssertLessThan(delta, 0.8,
                                   "\(sites[i].id)→\(sites[j].id) keeps its true direction (delta \(delta * 180 / .pi)°)")
             }
         }

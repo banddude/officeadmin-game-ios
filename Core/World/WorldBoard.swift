@@ -285,17 +285,19 @@ struct WorldBoard {
     }
 
     /// Resolve building overlaps WITHOUT re-shuffling the map, preserving the
-    /// relative geography the projection produced. Buildings seat on a fixed
-    /// rectangular LATTICE whose cells clear the largest footprint, so
-    /// neighbors can never interpenetrate (by construction — there is no
-    /// re-packing pass to bend geography). Each site takes the free lattice
-    /// cell nearest its TRUE projected anchor; sites seat
-    /// farthest-from-median first, so far-flung jobs land on their true spots
-    /// almost exactly and a dense metro cluster fills the cells around where
-    /// the metro actually is. The honesty traded away is cell granularity:
-    /// sites closer together than one cell (the crushed metro at state
-    /// scale) sit in adjacent cells in deterministic order — their cluster
-    /// shape tracks truth, their exact offsets do not.
+    /// relative geography the projection produced. A site whose true anchor
+    /// is genuinely clear KEEPS IT EXACTLY (a sparse world keeps perfect
+    /// proportions). Otherwise the site takes the free cell of a fixed
+    /// rectangular lattice nearest its true anchor — the lattice is a
+    /// well-spread candidate generator, and every seat (exact or cell) is
+    /// overlap-checked against the office lot, the layout and every building
+    /// already placed, so neighbors can never interpenetrate (no re-packing
+    /// pass to bend geography). Sites seat farthest-from-median first, so
+    /// far-flung jobs land on their true spots and a dense metro cluster
+    /// fills in around where the metro actually is. The honesty traded away
+    /// is cell granularity inside the crushed metro (adjacent cells in
+    /// deterministic order — the cluster's shape tracks truth, exact
+    /// centimeter offsets do not).
     private static func spreadAlongBearings(_ rects: inout [String: BoardRect],
                                             anchors: [String: SIMD2<Float>],
                                             around center: SIMD2<Float>,
@@ -309,19 +311,31 @@ struct WorldBoard {
         let widest = rects.values.reduce(Float(0)) { max($0, $1.halfExtents.x * 2) }
         let maxDepth = rects.values.reduce(Float(0)) { max($0, $1.halfExtents.y * 2) }
 
+        // Every seat — exact or cell — must clear the office lot, the layout,
+        // and every building already placed. That check IS the non-overlap
+        // guarantee; the lattice below only generates tidy candidates.
+        var placed: [(center: SIMD2<Float>, half: SIMD2<Float>)] = [
+            (office.center, office.halfExtents)
+        ]
         func fits(_ c: SIMD2<Float>, _ rect: BoardRect) -> Bool {
             let half = rect.halfExtents
             let inLayout = c.x - half.x >= layoutMin.x && c.x + half.x <= layoutMax.x &&
                 c.y - half.y >= layoutMin.y && c.y + half.y <= layoutMax.y
             guard inLayout else { return false }
-            let candidate = BoardRect(center: c, halfExtents: half)
-            return !candidate.overlaps(office, gap: WorldBoard.buildingGap)
+            let clear = placed.allSatisfy {
+                !(abs(c.x - $0.center.x) < half.x + $0.half.x + WorldBoard.buildingGap &&
+                  abs(c.y - $0.center.y) < half.y + $0.half.y + WorldBoard.buildingGap)
+            }
+            return clear
+        }
+        func seat(_ id: String, _ rect: BoardRect, at c: SIMD2<Float>) {
+            rects[id]?.center = c
+            placed.append((c, rect.halfExtents))
         }
 
         // A rectangular lattice sized to the largest footprint (plus the gap
-        // on both sides): one cell per building, ever, so neighbors can never
-        // interpenetrate. The board is portrait; a plain grid packs it far
-        // better than a hex one, whose wide columns waste the narrow deck.
+        // on both sides): tidy, well-spread candidate positions for sites
+        // whose true anchors are taken.
         let cellWidth = widest + WorldBoard.buildingGap * 2
         let cellDepth = maxDepth + WorldBoard.buildingGap * 2
         func cellCenter(_ i: Int, _ j: Int) -> SIMD2<Float> {
@@ -330,15 +344,10 @@ struct WorldBoard {
         func nearestCell(to p: SIMD2<Float>) -> (i: Int, j: Int) {
             (Int((p.x / cellWidth).rounded()), Int((p.y / cellDepth).rounded()))
         }
-
         var taken = Set<String>()
-        func seat(_ id: String, _ i: Int, _ j: Int) {
-            taken.insert("\(i),\(j)")
-            rects[id]?.center = cellCenter(i, j)
-        }
 
         // Deterministic order: farthest true anchor from the median first —
-        // outer truth anchors the board, the metro fills in last.
+        // outer truth anchors the board exactly, the metro fills in last.
         let order = rects.keys.sorted {
             let da = simd_distance(anchors[$0] ?? center, center)
             let db = simd_distance(anchors[$1] ?? center, center)
@@ -348,11 +357,18 @@ struct WorldBoard {
         for id in order {
             guard let rect = rects[id] else { continue }
             let anchor = anchors[id] ?? center
-            let home = nearestCell(to: anchor)
 
-            // Ring 0 is the home cell; each Chebyshev ring after wraps it.
-            // Candidates within a ring are tried nearest-to-truth first
-            // (distance, then angle, then cell coords — all deterministic).
+            // The true anchor, exactly, whenever it is genuinely clear.
+            if fits(anchor, rect) {
+                seat(id, rect, at: anchor)
+                continue
+            }
+
+            // Otherwise the free lattice cell nearest the truth. Ring 0 is
+            // the home cell; each Chebyshev ring after wraps it. Candidates
+            // are tried nearest-to-truth first (distance, then angle, then
+            // cell coords — all deterministic).
+            let home = nearestCell(to: anchor)
             var seatedHere = false
             search: for ring in 0...12 {
                 var ringCells: [(i: Int, j: Int)] = []
@@ -375,7 +391,8 @@ struct WorldBoard {
                     .filter { fits($0.c, rect) }
                     .sorted { ($0.d, $0.a, $0.cell.i, $0.cell.j) < ($1.d, $1.a, $1.cell.i, $1.cell.j) }
                 if let best = candidates.first {
-                    seat(id, best.cell.i, best.cell.j)
+                    taken.insert("\(best.cell.i),\(best.cell.j)")
+                    seat(id, rect, at: best.c)
                     seatedHere = true
                     break search
                 }
@@ -384,9 +401,10 @@ struct WorldBoard {
             // A board with no cell left (far more sites than today): clamp
             // the true point and let the geometry be as honest as it can.
             if !seatedHere {
-                rects[id]?.center = SIMD2(
+                let c = SIMD2(
                     min(max(anchor.x, layoutMin.x + rect.halfExtents.x), layoutMax.x - rect.halfExtents.x),
                     min(max(anchor.y, layoutMin.y + rect.halfExtents.y), layoutMax.y - rect.halfExtents.y))
+                seat(id, rect, at: c)
             }
         }
     }
