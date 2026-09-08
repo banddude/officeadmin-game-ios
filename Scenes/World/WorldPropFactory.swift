@@ -113,14 +113,11 @@ enum WorldPropFactory {
         return entity
     }
 
-    static func cylinder(radius: Float, height: Float, _ color: UIColor,
-                         at position: SIMD3<Float> = .zero) -> Entity {
-        let entity = Entity()
-        entity.components.set(ModelComponent(
-            mesh: .generateCylinder(height: height, radius: radius),
-            materials: [SimpleMaterial(color: color, isMetallic: false)]))
-        entity.position = position
-        return entity
+    /// A thin vertical post — iOS 17 has no cylinder generator, and at these
+    /// radii a slim box reads perfectly as a low-poly pole.
+    static func post(radius: Float, height: Float, _ color: UIColor,
+                     at position: SIMD3<Float> = .zero) -> Entity {
+        box(SIMD3(radius * 2, height, radius * 2), color, at: SIMD3(position.x, position.y + height / 2, position.z))
     }
 
     /// Centered text mesh (extruded, unlit so labels stay readable).
@@ -145,7 +142,7 @@ enum WorldPropFactory {
 
     static func tree(rng: inout SeededGenerator) -> Entity {
         let tree = Entity()
-        let trunk = cylinder(radius: 0.11, height: 0.8, WorldPalette.wood, at: SIMD3(0, 0.4, 0))
+        let trunk = post(radius: 0.11, height: 0.8, WorldPalette.wood, at: .zero)
         tree.addChild(trunk)
         let canopyColor = rng.chance(0.5) ? WorldPalette.canopy : WorldPalette.canopyDark
         let canopy = Entity()
@@ -167,36 +164,38 @@ enum WorldPropFactory {
     /// a grid of cream blocks whose gaps read as streets, sage parks, and
     /// trees — laid out around the site footprints and the office lot.
     static func groundBoard(board: WorldBoard, rng: inout SeededGenerator) -> Entity {
-        let root = Entity(name: "ground")
+        let root = Entity()
+        root.name = "ground"
+        let boardSize = WorldBoard.size
 
         // Base slab (streets show through the block gaps).
-        let slab = box(SIMD3(board.size.x, 0.6, board.size.y), WorldPalette.ground,
+        let slab = box(SIMD3(boardSize.x, 0.6, boardSize.y), WorldPalette.ground,
                        at: SIMD3(0, -0.3, 0))
         slab.generateCollisionShapes(recursive: false)
         root.addChild(slab)
 
         // Water band along the west edge, sunk just below street level.
-        let waterWidth = board.size.x * 0.16
-        let water = box(SIMD3(waterWidth, 0.5, board.size.y - 2), WorldPalette.water,
-                        at: SIMD3(-board.size.x / 2 + waterWidth / 2, -0.18, 0))
+        let waterWidth = boardSize.x * 0.16
+        let water = box(SIMD3(waterWidth, 0.5, boardSize.y - 2), WorldPalette.water,
+                        at: SIMD3(-boardSize.x / 2 + waterWidth / 2, -0.18, 0))
         root.addChild(water)
         // A brighter shoreline, then sand.
-        let shine = box(SIMD3(1.1, 0.5, board.size.y - 2),
+        let shine = box(SIMD3(1.1, 0.5, boardSize.y - 2),
                         WorldPalette.blend(WorldPalette.water, toward: .white, fraction: 0.45),
-                        at: SIMD3(-board.size.x / 2 + waterWidth - 0.4, -0.14, 0))
+                        at: SIMD3(-boardSize.x / 2 + waterWidth - 0.4, -0.14, 0))
         root.addChild(shine)
-        let beach = box(SIMD3(2.2, 0.52, board.size.y - 2), WorldPalette.sand,
-                        at: SIMD3(-board.size.x / 2 + waterWidth + 0.9, -0.08, 0))
+        let beach = box(SIMD3(2.2, 0.52, boardSize.y - 2), WorldPalette.sand,
+                        at: SIMD3(-boardSize.x / 2 + waterWidth + 0.9, -0.08, 0))
         root.addChild(beach)
 
         // City blocks. The gaps between them are the streets.
         let pitch: Float = 7.4
         let blockHalf: Float = 2.85
-        let firstX = -board.size.x / 2 + waterWidth + 3.4
+        let firstX = -boardSize.x / 2 + waterWidth + 3.4
         var x = firstX + pitch / 2
-        while x < board.size.x / 2 - 3.0 {
-            var y = -board.size.y / 2 + pitch / 2
-            while y < board.size.y / 2 - 3.0 {
+        while x < boardSize.x / 2 - 3.0 {
+            var y = -boardSize.y / 2 + pitch / 2
+            while y < boardSize.y / 2 - 3.0 {
                 defer { y += pitch }
                 let rect = BoardRect.size(blockHalf * 2 + 2.4, blockHalf * 2 + 2.4,
                                           at: SIMD2(x, y))
@@ -228,10 +227,10 @@ enum WorldPropFactory {
 
         // A little path from the office door to the board's south edge.
         let pathStart = board.officeDoorPoint
-        root.addChild(box(SIMD3(1.8, 0.15, board.size.y / 2 - pathStart.y + 1.5),
+        root.addChild(box(SIMD3(1.8, 0.15, boardSize.y / 2 - pathStart.y + 1.5),
                           WorldPalette.path,
                           at: SIMD3(pathStart.x, 0.075,
-                                    (pathStart.y + board.size.y / 2) / 2 + 0.75)))
+                                    (pathStart.y + boardSize.y / 2) / 2 + 0.75)))
         return root
     }
 
@@ -242,7 +241,8 @@ enum WorldPropFactory {
     /// building's footprint matches WorldBoard.buildingSize so the geometry
     /// a walker collides with is the geometry they see.
     static func building(for site: WorldSite, footprint: BoardRect) -> Entity {
-        let group = Entity(name: "site:\(site.id)")
+        let group = Entity()
+        group.name = "site:\(site.id)"
         let wall = WorldPalette.wall(for: site.phase)
         let scope = (site.scopeLabel ?? "").lowercased()
         let size = SIMD3(footprint.halfExtents.x * 2, height(for: site), footprint.halfExtents.y * 2)
@@ -342,7 +342,7 @@ enum WorldPropFactory {
     /// The red bolt pin on its pole — the site marker of the mockup.
     static func sitePin(aboveRoofAt y: Float) -> Entity {
         let pin = Entity()
-        let pole = cylinder(radius: 0.045, height: 1.15, WorldPalette.stucco, at: SIMD3(0, 0.57, 0))
+        let pole = post(radius: 0.045, height: 1.15, WorldPalette.stucco, at: .zero)
         pin.addChild(pole)
         let head = disc(radius: 0.3, thickness: 0.26, WorldPalette.pinRed, at: SIMD3(0, 1.3, 0))
         pin.addChild(head)
@@ -381,7 +381,8 @@ enum WorldPropFactory {
     /// The home node: white stucco, terracotta roof, sage awning, sign over
     /// the door, a flag out front. Its door sits at board.officeDoorPoint.
     static func office(board: WorldBoard) -> Entity {
-        let group = Entity(name: "office")
+        let group = Entity()
+        group.name = "office"
         let footprint = board.officeFootprint
         let w = footprint.halfExtents.x * 2
         let d = footprint.halfExtents.y * 2
@@ -419,8 +420,8 @@ enum WorldPropFactory {
         group.addChild(sign)
 
         // Flag pole with a pennant, and a chalkboard A-frame by the door.
-        let flag = cylinder(radius: 0.05, height: 2.6, WorldPalette.stucco,
-                            at: SIMD3(w / 2 - 0.8, 1.3, d / 2 + 1.6))
+        let flag = post(radius: 0.05, height: 2.6, WorldPalette.stucco,
+                        at: SIMD3(w / 2 - 0.8, 0, d / 2 + 1.6))
         group.addChild(flag)
         group.addChild(box(SIMD3(0.7, 0.3, 0.03), .white,
                            at: SIMD3(w / 2 - 0.8 + 0.36, 2.45, d / 2 + 1.6)))
@@ -504,11 +505,11 @@ enum WorldPropFactory {
     static func attentionPickup(kind: WorldArt.AttentionKind,
                                 artProvider: any WorldArtProviding) -> Entity {
         let group = Entity()
-        group.addChild(cylinder(radius: 0.04, height: 0.9, WorldPalette.stucco,
-                                at: SIMD3(0, 0.45, 0)))
+        group.addChild(post(radius: 0.04, height: 0.9, WorldPalette.stucco, at: .zero))
 
-        let sprite = Entity(name: "sprite")
-        let material = SimpleMaterial(color: .white, isMetallic: false)
+        let sprite = Entity()
+        sprite.name = "sprite"
+        var material = SimpleMaterial(color: .white, isMetallic: false)
         if let image = artProvider.attentionSprite(kind, side: 128).cgImage,
            let texture = try? TextureResource.generate(
                from: image, options: TextureResource.CreateOptions(semantic: .color)) {

@@ -97,9 +97,9 @@ final class WorldGameController: NSObject {
         anchor.addChild(cameraEntity)
 
         player = WorldPropFactory.character(shirt: WorldPalette.vest)
-        if let legL = player.child(named: "legL"),
-           let legR = player.child(named: "legR"),
-           let body = player.child(named: "body") {
+        if let legL = player.findEntity(named: "legL"),
+           let legR = player.findEntity(named: "legR"),
+           let body = player.findEntity(named: "body") {
             playerParts = (legL, legR, body)
         }
         anchor.addChild(player)
@@ -256,7 +256,7 @@ final class WorldGameController: NSObject {
         wanderers.forEach { $0.entity.removeFromParent() }
         wanderers = []
 
-        let shirts: [UIColor] = [WorldPalette.canopy, WorldPalette.sky, WorldPalette.clay,
+        let shirts: [UIColor] = [WorldPalette.canopy, WorldPalette.sky, UIColor(Theme.clay),
                                  WorldPalette.blend(WorldPalette.canopy, toward: .white, fraction: 0.2)]
         var available = Array(board.sitePositions.values)
         available.append(board.officeDoorPoint + SIMD2(3, 2))
@@ -268,8 +268,8 @@ final class WorldGameController: NSObject {
             let entity = WorldPropFactory.character(shirt: shirts[index % shirts.count])
             entity.position = boardPoint(start)
             anchor.addChild(entity)
-            guard let legL = entity.child(named: "legL"),
-                  let legR = entity.child(named: "legR") else { continue }
+            guard let legL = entity.findEntity(named: "legL"),
+                  let legR = entity.findEntity(named: "legR") else { continue }
             wanderers.append(Wanderer(
                 entity: entity,
                 legs: (legL, legR),
