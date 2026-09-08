@@ -99,11 +99,13 @@ platform :ios do
     # iPhone Distribution; the signing cert must be IN the profile or iOS
     # refuses the install.
     Spaceship::ConnectAPI.auth(key_id: API_KEY_ID, issuer_id: API_ISSUER_ID, filepath: API_KEY_PATH)
+    # ASC "name" for the Apple Distribution cert is "Apple Distribution: Michael
+    # Shaffer" (displayName is just the person). certificate_type is DISTRIBUTION.
     dist_certs = Spaceship::ConnectAPI::Certificate.all.filter_map do |c|
-      c.id if c.display_name == DIST_CERT
+      c.id if c.name.to_s.start_with?("Apple Distribution")
     end
-    UI.user_error!("No cert named '#{DIST_CERT}' is visible to the API key") if dist_certs.empty?
-    UI.message("Signing profile with Apple Distribution cert #{dist_certs.first} (#{DIST_CERT})")
+    UI.user_error!("No Apple Distribution certificate is visible to the API key") if dist_certs.empty?
+    UI.message("Signing profile with Apple Distribution cert #{dist_certs.first}")
 
     sigh(
       api_key: api_key,
