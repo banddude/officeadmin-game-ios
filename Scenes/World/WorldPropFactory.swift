@@ -161,8 +161,8 @@ enum WorldPropFactory {
     // MARK: Ground board
 
     /// The whole ground: base slab, water band in the west with a sand strip,
-    /// a grid of cream blocks whose gaps read as streets, sage parks, and
-    /// trees — laid out around the site footprints and the office lot.
+    /// a grid of cream blocks whose gaps read as streets, sage parks, trees,
+    /// and low-rise filler buildings between the real job sites.
     static func groundBoard(board: WorldBoard, rng: inout SeededGenerator) -> Entity {
         let root = Entity()
         root.name = "ground"
@@ -214,7 +214,10 @@ enum WorldPropFactory {
         sign.position += SIMD3(3, 2.4, -boardSize.y / 2 - 3.4)
         root.addChild(sign)
 
-        // City blocks. The gaps between them are the streets.
+        // City blocks. Every block gets a warm pad, even when a real site or
+        // the office occupies it, so the open space reads as a town grid
+        // instead of a gray plaza. Unoccupied blocks get parks or small
+        // background buildings that stay lower than the actual job sites.
         let pitch: Float = 7.4
         let blockHalf: Float = 2.85
         let firstX = -boardSize.x / 2 + waterWidth + 3.4
@@ -223,29 +226,36 @@ enum WorldPropFactory {
             var y = -boardSize.y / 2 + pitch / 2
             while y < boardSize.y / 2 - 3.0 {
                 defer { y += pitch }
-                let rect = BoardRect.size(blockHalf * 2 + 2.4, blockHalf * 2 + 2.4,
-                                          at: SIMD2(x, y))
-                // Keep the office lot and every building pad clear.
-                if rect.overlaps(board.officeFootprint, gap: 1.4) { continue }
-                if board.buildingFootprints.values.contains(where: { $0.overlaps(rect, gap: 0.4) }) {
-                    continue
-                }
-                let isPark = rng.chance(0.28)
+                let blockRect = BoardRect.size(blockHalf * 2, blockHalf * 2, at: SIMD2(x, y))
+                let reserved = blockRect.overlaps(board.officeFootprint, gap: 0.45) ||
+                    board.buildingFootprints.values.contains(where: { $0.overlaps(blockRect, gap: 0.25) })
+                let isPark = !reserved && rng.chance(0.22)
                 let color = isPark ? WorldPalette.park : WorldPalette.block
                 root.addChild(box(SIMD3(blockHalf * 2, 0.14, blockHalf * 2), color,
                                   at: SIMD3(x, 0.07, y)))
+
                 if isPark {
-                    let trees = rng.chance(0.5) ? 2 : 1
+                    let trees = rng.chance(0.55) ? 3 : 2
                     for _ in 0..<trees {
                         let tree = tree(rng: &rng)
-                        tree.position = SIMD3(x + rng.float(in: -1.6...1.6), 0,
-                                              y + rng.float(in: -1.6...1.6))
+                        tree.position = SIMD3(x + rng.float(in: -1.65...1.65), 0,
+                                              y + rng.float(in: -1.65...1.65))
                         root.addChild(tree)
                     }
-                } else if rng.chance(0.22) {
-                    let tree = tree(rng: &rng)
-                    tree.position = SIMD3(x + rng.float(in: -1.8...1.8), 0, y - blockHalf + 0.5)
-                    root.addChild(tree)
+                } else if !reserved {
+                    let fillerCount = rng.chance(0.62) ? 2 : 1
+                    let offsets = [SIMD2<Float>(-1.25, -1.10), SIMD2<Float>(1.15, 1.05)]
+                    for index in 0..<fillerCount {
+                        root.addChild(townBuilding(
+                            rng: &rng,
+                            at: SIMD2(x, y) + offsets[index]))
+                    }
+                    if rng.chance(0.78) {
+                        let tree = tree(rng: &rng)
+                        tree.position = SIMD3(x + rng.float(in: -1.8...1.8), 0,
+                                              y + blockHalf - 0.45)
+                        root.addChild(tree)
+                    }
                 }
             }
             x += pitch
@@ -258,6 +268,29 @@ enum WorldPropFactory {
                           at: SIMD3(pathStart.x, 0.075,
                                     (pathStart.y + boardSize.y / 2) / 2 + 0.75)))
         return root
+    }
+
+    private static func townBuilding(rng: inout SeededGenerator,
+                                     at center: SIMD2<Float>) -> Entity {
+        let group = Entity()
+        let width = rng.float(in: 1.45...2.25)
+        let depth = rng.float(in: 1.35...2.10)
+        let height = rng.float(in: 0.85...1.65)
+        let wall = rng.chance(0.5)
+            ? WorldPalette.stucco
+            : WorldPalette.blend(WorldPalette.block, toward: WorldPalette.terracotta, fraction: 0.16)
+        group.addChild(box(SIMD3(width, height, depth), wall,
+                           at: SIMD3(0, height / 2 + 0.14, 0)))
+        let roofColor = rng.chance(0.72) ? WorldPalette.terracotta : WorldPalette.canopy
+        group.addChild(box(SIMD3(width + 0.18, 0.16, depth + 0.18), roofColor,
+                           at: SIMD3(0, height + 0.22, 0)))
+        if rng.chance(0.42) {
+            group.addChild(box(SIMD3(width * 0.45, 0.11, depth * 0.42),
+                               WorldPalette.blend(roofColor, toward: .white, fraction: 0.25),
+                               at: SIMD3(0, height + 0.35, 0)))
+        }
+        group.position = SIMD3(center.x, 0, center.y)
+        return group
     }
 
     // MARK: Site buildings
