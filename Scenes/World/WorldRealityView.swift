@@ -97,6 +97,8 @@ final class WorldGameController: NSObject {
         anchor.addChild(cameraEntity)
 
         player = WorldPropFactory.character(shirt: WorldPalette.vest)
+        // The hero reads at diorama distance without outsizing the doors.
+        player.scale = SIMD3(repeating: 1.5)
         if let legL = player.findEntity(named: "legL"),
            let legR = player.findEntity(named: "legR"),
            let body = player.findEntity(named: "body") {
@@ -266,6 +268,7 @@ final class WorldGameController: NSObject {
             var rng = SeededGenerator(SeededGenerator.seed(from: ["crew", member.id]))
             let start = available[index % available.count]
             let entity = WorldPropFactory.character(shirt: shirts[index % shirts.count])
+            entity.scale = SIMD3(repeating: 1.2)
             entity.position = boardPoint(start)
             anchor.addChild(entity)
             guard let legL = entity.findEntity(named: "legL"),

@@ -31,7 +31,7 @@ enum WorldPalette {
     static let skin = UIColor(red: 0.96, green: 0.85, blue: 0.72, alpha: 1)
     static let vest = UIColor(red: 0.93, green: 0.72, blue: 0.33, alpha: 1)     // safety mustard
     static let hardHat = UIColor(red: 0.97, green: 0.96, blue: 0.92, alpha: 1)
-    static let sky = UIColor(red: 0.66, green: 0.82, blue: 0.90, alpha: 1)
+    static let sky = UIColor(red: 0.78, green: 0.86, blue: 0.91, alpha: 1)   // warm haze
 
     /// Wall tint for a site building: its phase color softened toward cream,
     /// so the board stays pastel even when phases differ.
@@ -187,6 +187,32 @@ enum WorldPropFactory {
         let beach = box(SIMD3(2.2, 0.52, boardSize.y - 2), WorldPalette.sand,
                         at: SIMD3(-boardSize.x / 2 + waterWidth + 0.9, -0.08, 0))
         root.addChild(beach)
+
+        // The ocean wraps the south edge too (like the mockup), meeting the
+        // west band at the corner and stopping at the slab's east edge;
+        // sand runs along the shore.
+        let southDepth = waterWidth + 3.5
+        root.addChild(box(SIMD3(boardSize.x + waterWidth / 2, 0.5, southDepth), WorldPalette.water,
+                          at: SIMD3(-waterWidth / 4, -0.18,
+                                    boardSize.y / 2 + southDepth / 2 - 1.2)))
+        root.addChild(box(SIMD3(boardSize.x + waterWidth / 2, 0.52, 1.8), WorldPalette.sand,
+                          at: SIMD3(-waterWidth / 4, -0.08, boardSize.y / 2 - 0.4)))
+
+        // Hills cap the north horizon, and the city signs its own hillside.
+        for (hx, hr) in [(-27.0, 8.0), (-11.0, 10.0), (7.0, 9.0), (23.0, 7.5), (34.0, 8.0)] {
+            let hill = Entity()
+            hill.components.set(ModelComponent(
+                mesh: .generateSphere(radius: Float(hr)),
+                materials: [SimpleMaterial(color: WorldPalette.blend(WorldPalette.park, toward: .white, fraction: 0.18),
+                                           isMetallic: false)]))
+            hill.scale = SIMD3(1, 0.4, 0.72)
+            hill.position = SIMD3(Float(hx), -0.6, -boardSize.y / 2 - Float(hr) * 0.5)
+            root.addChild(hill)
+        }
+        let sign = text("LOS ANGELES", height: 1.5,
+                        color: WorldPalette.blend(WorldPalette.stucco, toward: .white, fraction: 0.35))
+        sign.position += SIMD3(3, 2.4, -boardSize.y / 2 - 3.4)
+        root.addChild(sign)
 
         // City blocks. The gaps between them are the streets.
         let pitch: Float = 7.4
