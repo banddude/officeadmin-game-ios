@@ -61,7 +61,7 @@ actor AddressGeocoder {
                 }
                 cache[trimmed] = location.coordinate
                 attempts[trimmed] = nil
-                Self.persistToDisk()
+                persistToDisk()
                 Self.log.info("geocode placed \(trimmed, privacy: .public)")
                 return location.coordinate
             } catch {
