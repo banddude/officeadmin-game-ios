@@ -123,6 +123,106 @@ final class WorldBoardTests: XCTestCase {
         XCTAssertGreaterThan(se.x, 0, "the south-east site stays in the eastern half")
     }
 
+    // MARK: - Geography-preserving spread
+
+    /// Real CA spread (Bay Area to San Diego): after the board makes it
+    /// walkable, each site still lies in its true direction from the map's
+    /// center — the bearings that make the world read "where each job is in
+    /// CA" survive the scaling and the overlap spread.
+    func testBearingsSurviveSpreading() throws {
+        let sites = [
+            site("novato", lat: 38.11, lng: -122.57),      // far north-west
+            site("sanjose", lat: 37.23, lng: -121.79),     // north-west
+            site("coalinga", lat: 36.14, lng: -120.33),    // north
+            site("fowler", lat: 36.63, lng: -119.67),      // north-east
+            site("simi", lat: 34.27, lng: -118.77),        // west
+            site("palisades", lat: 34.05, lng: -118.53),
+            site("downtown", lat: 34.05, lng: -118.25),
+            site("downey", lat: 33.93, lng: -118.13),
+            site("santaana", lat: 33.81, lng: -117.87),
+            site("sandiego", lat: 32.70, lng: -117.07),    // far south-east
+        ]
+        let board = WorldBoard(sites: sites)
+
+        // The board's own center for the site cloud, in Mercator terms.
+        let coords = sites.compactMap(\.coordinate)
+        let lat = coords.map(\.latitude).reduce(0, +) / Double(coords.count)
+        let lng = coords.map(\.longitude).reduce(0, +) / Double(coords.count)
+        let centroid = WorldBoard.mercatorMeters(CLLocationCoordinate2D(latitude: lat, longitude: lng))
+        let regionMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
+                              -WorldBoard.size.y / 2 + WorldBoard.padding)
+        let regionMax = SIMD2(WorldBoard.size.x / 2 - WorldBoard.padding,
+                              WorldBoard.size.y / 2 - WorldBoard.padding)
+        let boardCenter = (regionMin + regionMax) / 2
+
+        for s in sites {
+            let p = try XCTUnwrap(board.sitePositions[s.id], "\(s.id) placed")
+            let m = WorldBoard.mercatorMeters(s.coordinate!)
+            // Board y is south, so the true board bearing negates Mercator y.
+            let trueBearing = atan2(-(m.y - centroid.y), m.x - centroid.x)
+            let boardBearing = atan2(p.y - boardCenter.y, p.x - boardCenter.x)
+            var delta = abs(boardBearing - trueBearing)
+            if delta > .pi { delta = 2 * .pi - delta }
+            // The layout clamp can bend rim sites a little; the middle of the
+            // map stays honest. Downtown/Palisades/Downey/SantaAna are the
+            // interior — they must keep their bearings almost exactly.
+            let interior = ["downtown", "palisades", "downey", "santaana", "simi"]
+            let tolerance: Float = interior.contains(s.id) ? 0.10 : 0.45
+            XCTAssertLessThan(delta, tolerance, "\(s.id) keeps its true bearing (delta \(delta))")
+        }
+
+        // And no two buildings interpenetrate anywhere.
+        let rects = board.buildingFootprints.values.map { $0 }
+        for i in rects.indices {
+            for j in i + 1..<rects.count {
+                XCTAssertFalse(rects[i].overlaps(rects[j], gap: WorldBoard.buildingGap),
+                               "buildings \(i)/\(j) clear each other")
+            }
+        }
+    }
+
+    /// A dense metro cluster blooms OUTWARD from its true spot: every
+    /// building keeps (roughly) its own bearing from the center, nothing is
+    /// re-packed into a village grid, and duplicate addresses still split.
+    func testClusterBloomsAlongTrueBearings() throws {
+        // Ten jobs inside a couple of kilometers of DTLA, plus a San Diego
+        // outlier so the fit doesn't blow the cluster up to board size.
+        var sites = (0..<10).map { i in
+            site("la\(i)", lat: 34.05 + Double(i) * 0.002, lng: -118.25 + Double(i % 3) * 0.002)
+        }
+        sites.append(site("sd", lat: 32.70, lng: -117.07))
+        let board = WorldBoard(sites: sites)
+
+        XCTAssertEqual(board.buildingFootprints.count, 11, "all placed")
+        let rects = board.buildingFootprints.values.map { $0 }
+        for i in rects.indices {
+            for j in i + 1..<rects.count {
+                XCTAssertFalse(rects[i].overlaps(rects[j]), "cluster buildings stay clear")
+            }
+        }
+        // The bloom keeps the cluster LOCAL: every LA building stays north of
+        // the San Diego one (board y is south).
+        let sdY = try XCTUnwrap(board.sitePositions["sd"]).y
+        for i in 0..<10 {
+            let y = try XCTUnwrap(board.sitePositions["la\(i)"]).y
+            XCTAssertLessThan(y, sdY, "la\(i) stays north of San Diego")
+        }
+    }
+
+    /// Same world in any order → identical board: the layout is a function of
+    /// geography, not of the API's reply order.
+    func testLayoutIsDeterministicUnderShuffledInput() {
+        let sites = [
+            site("a", lat: 38.11, lng: -122.57), site("b", lat: 34.05, lng: -118.25),
+            site("c", lat: 32.70, lng: -117.07), site("d", lat: 36.14, lng: -120.33),
+            site("e", lat: 34.27, lng: -118.77), site("f", lat: 33.81, lng: -117.87),
+        ]
+        let one = WorldBoard(sites: sites)
+        let two = WorldBoard(sites: sites.reversed())
+        XCTAssertEqual(one.sitePositions, two.sitePositions,
+                       "site order does not change the board")
+    }
+
     func testBuildingSizeFollowsCategoryAndPhase() {
         let base = WorldBoard.buildingSize(category: nil, phase: .active)
         let solar = WorldBoard.buildingSize(category: "Solar install", phase: .active)

@@ -115,6 +115,13 @@ struct WorldBoard {
 
         let originMeters = WorldBoard.mercatorMeters(origin)
 
+        // The region sites may occupy: padded, and clear of the ocean.
+        let regionMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
+                              -WorldBoard.size.y / 2 + WorldBoard.padding)
+        let regionMax = SIMD2(WorldBoard.size.x / 2 - WorldBoard.padding,
+                              WorldBoard.size.y / 2 - WorldBoard.padding)
+        let regionCenter = (regionMin + regionMax) / 2
+
         // Project every site to meters around the origin, then fit the whole
         // cloud into the padded board (east of the scenery band) with a
         // single uniform scale.
@@ -129,15 +136,9 @@ struct WorldBoard {
                 lo = simd_min(lo, SIMD2<Float>(item.m))
                 hi = simd_max(hi, SIMD2<Float>(item.m))
             }
-            // The region sites may occupy: padded, and clear of the ocean.
-            let regionMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
-                                  -WorldBoard.size.y / 2 + WorldBoard.padding)
-            let regionMax = SIMD2(WorldBoard.size.x / 2 - WorldBoard.padding,
-                                  WorldBoard.size.y / 2 - WorldBoard.padding)
             // usable = region minus the fit margin ON EACH SIDE, so a cloud
             // that fills `usable` leaves room for its buildings' halves.
             let usable = regionMax - regionMin - SIMD2(WorldBoard.fitMargin * 2, WorldBoard.fitMargin * 2)
-            let regionCenter = (regionMin + regionMax) / 2
             let span = hi - lo
             // Scale to fit (a degenerate cluster keeps a sane human scale).
             if span.x > 0.001 || span.y > 0.001 {
@@ -164,8 +165,10 @@ struct WorldBoard {
             min: -WorldBoard.size / 2 + SIMD2(2.4, 2.4),
             max: WorldBoard.size / 2 - SIMD2(2.4, 2.4))
 
-        // Footprints from board positions, then push everything apart so no
-        // two buildings interpenetrate and none swallows the office.
+        // Footprints from board positions, then spread overlaps OUTWARD ALONG
+        // each site's true bearing so the relative geography the projection
+        // produced survives being made walkable (dense metro clusters bloom
+        // radially instead of being re-packed into a generic village).
         var footprints: [String: BoardRect] = [:]
         for site in geocoded {
             guard let p = positions[site.id] else { continue }
@@ -173,7 +176,10 @@ struct WorldBoard {
                                                phase: site.phase)
             footprints[site.id] = BoardRect.size(size.x, size.y, at: p)
         }
-        WorldBoard.separate(&footprints, from: officeFootprint)
+        WorldBoard.spreadAlongBearings(&footprints,
+                                       anchors: positions,
+                                       around: regionCenter,
+                                       office: officeFootprint)
 
         // Positions follow their (possibly nudged) footprints.
         for (id, rect) in footprints { positions[id] = rect.center }
@@ -230,6 +236,78 @@ struct WorldBoard {
         let lat = coords.map(\.latitude).reduce(0, +) / Double(coords.count)
         let lng = coords.map(\.longitude).reduce(0, +) / Double(coords.count)
         return CLLocationCoordinate2D(latitude: lat, longitude: lng)
+    }
+
+    /// Resolve building overlaps WITHOUT re-shuffling the map. Every building
+    /// keeps the BEARING of its true projected position from the board center
+    /// and may only slide outward along that bearing until it clears the
+    /// buildings (and the office lot) already placed — so relative geography,
+    /// directions and neighbor ordering survive being made walkable: a dense
+    /// metro cluster blooms radially around its true spot instead of being
+    /// re-packed into a generic village. Deterministic: sites are placed
+    /// farthest-from-center first, so outer truth anchors the rim and inner
+    /// sites fill in behind it without ever crossing a placed neighbor.
+    private static func spreadAlongBearings(_ rects: inout [String: BoardRect],
+                                            anchors: [String: SIMD2<Float>],
+                                            around center: SIMD2<Float>,
+                                            office: BoardRect) {
+        let layoutMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
+                              -WorldBoard.size.y / 2 + 3.0)
+        let layoutMax = WorldBoard.size / 2 - SIMD2(Float(3.0), Float(3.0))
+
+        // Clearance circles: generous enough that two cleared circles leave
+        // their axis-aligned boxes all but clear; a bounded polish pass below
+        // settles any corner graze the circles let through.
+        func circleRadius(_ r: BoardRect) -> Float {
+            max(r.halfExtents.x, r.halfExtents.y) * 1.25 + WorldBoard.buildingGap / 2
+        }
+        var placed: [(center: SIMD2<Float>, radius: Float)] = [
+            (office.center, circleRadius(office))
+        ]
+
+        let order = rects.keys.sorted {
+            let da = simd_distance(anchors[$0] ?? center, center)
+            let db = simd_distance(anchors[$1] ?? center, center)
+            return da != db ? da > db : $0 < $1
+        }
+
+        for id in order {
+            guard let rect = rects[id] else { continue }
+            var dir = (anchors[id] ?? center) - center
+            var radius0 = simd_length(dir)
+            if radius0 < 0.001 {
+                // The exact centroid: give it a deterministic bearing (golden
+                // angle by placement order) so it fans out like the rest.
+                let index = Float(order.firstIndex(of: id) ?? 0)
+                dir = SIMD2(cos(index * 2.399_963), sin(index * 2.399_963))
+                radius0 = 0.001
+            }
+            let u = dir / radius0
+            let radius = circleRadius(rect)
+
+            // Slide outward along the true bearing until the circle clears
+            // everything already placed (bounded walk; the layout clamp below
+            // catches a bearing that is full to the rim).
+            var r = radius0
+            for _ in 0..<600 where r < 300 {
+                let c = center + u * r
+                let blocked = placed.contains {
+                    simd_distance($0.center, c) < $0.radius + radius
+                }
+                if !blocked { break }
+                r += 0.25
+            }
+            var c = center + u * r
+            c = SIMD2(min(max(c.x, layoutMin.x + rect.halfExtents.x), layoutMax.x - rect.halfExtents.x),
+                      min(max(c.y, layoutMin.y + rect.halfExtents.y), layoutMax.y - rect.halfExtents.y))
+            rects[id]?.center = c
+            placed.append((c, radius))
+        }
+
+        // Polish: circles at 1.25x plus the layout clamp can let box corners
+        // graze. Resolve residual overlaps with minimal axis-aligned shoves,
+        // starting from a geography-true layout, so the nudges stay tiny.
+        WorldBoard.separate(&rects, from: office)
     }
 
     /// Push building footprints apart (and away from the office) until they
