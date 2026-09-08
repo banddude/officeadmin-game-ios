@@ -301,7 +301,7 @@ enum WorldWalk {
     /// Does a circle at `center` (radius `radius`) overlap the rect?
     static func overlaps(rect: BoardRect, circle center: SIMD2<Float>, radius: Float) -> Bool {
         let q = rect.clampPoint(center)
-        simd_distance(q, center) < radius
+        return simd_distance(q, center) < radius
     }
 
     /// Move by `delta`, sliding around obstacles instead of sticking: each
