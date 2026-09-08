@@ -126,28 +126,32 @@ final class WorldBoardTests: XCTestCase {
 
     // MARK: - Geography-preserving spread
 
-    /// Real CA spread (Bay Area to San Diego): after the board makes it
-    /// walkable, far-flung sites keep the DIRECTION of their true positions
-    /// from the map's center (the bearings that make the world read "where
-    /// each job is in CA"), every building stays near its true projected
-    /// point, and nothing interpenetrates.
+    /// REAL project coordinates (from GeocodeSeed.json) spanning the state —
+    /// Bay Area, Central Valley, the LA basin (where most jobs sit) and San
+    /// Diego: after the board makes it walkable, well-separated jobs keep
+    /// their true RELATIVE directions (the Bay stays north-west of San Diego,
+    /// Orange County stays east of the basin), every building stays within a
+    /// walk of its true projected point, and nothing interpenetrates.
     func testBearingsSurviveSpreading() throws {
         let sites = [
-            site("novato", lat: 38.11, lng: -122.57),      // far north-west
-            site("sanjose", lat: 37.23, lng: -121.79),     // north-west
-            site("coalinga", lat: 36.14, lng: -120.33),    // north
-            site("fowler", lat: 36.63, lng: -119.67),      // north-east
-            site("simi", lat: 34.27, lng: -118.77),        // west
-            site("palisades", lat: 34.05, lng: -118.53),
-            site("downtown", lat: 34.05, lng: -118.25),
-            site("downey", lat: 33.93, lng: -118.13),
-            site("santaana", lat: 33.81, lng: -117.87),
-            site("sandiego", lat: 32.70, lng: -117.07),    // far south-east
+            site("novato", lat: 38.1099, lng: -122.5665),     // 819 Olive St
+            site("sanjose", lat: 37.2345, lng: -121.7874),    // 6578 Santa Teresa Blvd
+            site("coalinga", lat: 36.1353, lng: -120.3278),   // 1921 Mercantile Ln
+            site("fowler", lat: 36.6349, lng: -119.6737),     // 658 E Adams Ave
+            site("simi", lat: 34.2709, lng: -118.7705),       // 1492 E Los Angeles Ave
+            site("santaclarita", lat: 34.4390, lng: -118.5719),// 24930 Avenue Stanford
+            site("palisades", lat: 34.0483, lng: -118.5252),  // 1030 Swarthmore Ave
+            site("encino", lat: 34.1574, lng: -118.5040),     // 17010 Rancho St
+            site("pasadena", lat: 34.1616, lng: -118.3036),   // 215 Thompson Ave
+            site("downtown", lat: 34.0935, lng: -118.3241),   // 1232 N El Centro Ave
+            site("downey", lat: 33.9255, lng: -118.1298),     // 12126 Lakewood Blvd
+            site("orange", lat: 33.8134, lng: -117.8664),     // 1577 N Main St
+            site("sandiego", lat: 32.7018, lng: -117.0663),   // 6130 Skyline Drive
         ]
         let board = WorldBoard(sites: sites)
 
         // Mirror the board's own fit math to know each site's TRUE projected
-        // point and the cloud's Mercator centroid.
+        // point (the cloud's bounding box seated at the region center).
         let coords = sites.compactMap(\.coordinate)
         let lat = coords.map(\.latitude).reduce(0, +) / Double(coords.count)
         let lng = coords.map(\.longitude).reduce(0, +) / Double(coords.count)
@@ -166,43 +170,49 @@ final class WorldBoardTests: XCTestCase {
         let span = hi - lo
         let scale = min(usable.x / Float(max(span.x, 0.001)),
                         usable.y / Float(max(span.y, 0.001)), 12)
-        // The fit seats the cloud's bounding-box center (not its centroid) at
-        // the region center, with board y south.
         let cloudCenter = (lo + hi) / 2
         let anchors = Dictionary(uniqueKeysWithValues: meters.enumerated().map { i, m in
             (sites[i].id, regionCenter + SIMD2<Float>(m - cloudCenter) * scale * SIMD2<Float>(1, -1))
         })
 
-        // Far-flung sites anchor the map: their direction from the center is
-        // the true one (a full bearing may slide a site outward along itself,
-        // so allow a rim's worth of bend).
-        let far = ["novato", "sanjose", "coalinga", "fowler", "simi", "sandiego"]
-        for (i, s) in sites.enumerated() where far.contains(s.id) {
-            let p = try XCTUnwrap(board.sitePositions[s.id], "\(s.id) placed")
-            // meters[i] is the Mercator OFFSET from the cloud's origin — the
-            // quantity the bearing must be measured against.
-            let m = meters[i]
-            let trueBearing = Float(atan2(-(m.y - cloudCenter.y), m.x - cloudCenter.x))
-            let boardBearing = atan2(p.y - regionCenter.y, p.x - regionCenter.x)
-            var delta = abs(boardBearing - trueBearing)
-            if delta > .pi { delta = 2 * .pi - delta }
-            XCTAssertLessThan(delta, 0.30, "\(s.id) keeps its true bearing (delta \(delta))")
-        }
-
-        // Every building stays within a reasonable walk of where the
-        // geography puts it, and inside the layout rect.
+        // Every building stays within a walk of its true point, on the board.
         let layoutMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
                               -WorldBoard.size.y / 2 + 3.0)
         let layoutMax = WorldBoard.size / 2 - SIMD2(Float(3.0), Float(3.0))
         for s in sites {
             let p = try XCTUnwrap(board.sitePositions[s.id], "\(s.id) placed")
             let anchor = try XCTUnwrap(anchors[s.id])
-            XCTAssertLessThan(simd_distance(p, anchor), 24,
+            XCTAssertLessThan(simd_distance(p, anchor), 16,
                               "\(s.id) stays near its true point")
             XCTAssertGreaterThan(p.x, layoutMin.x - 0.5, "\(s.id) in layout")
             XCTAssertLessThan(p.x, layoutMax.x + 0.5, "\(s.id) in layout")
             XCTAssertGreaterThan(p.y, layoutMin.y - 0.5, "\(s.id) in layout")
             XCTAssertLessThan(p.y, layoutMax.y + 0.5, "\(s.id) in layout")
+        }
+
+        // State-scale geography: pairs well-separated in truth keep their
+        // true relative direction on the board (this is the property that
+        // makes the world read "accurate to where each job is in CA").
+        var maxTrueSeparation: Float = 0
+        for i in sites.indices {
+            for j in i + 1..<sites.count {
+                maxTrueSeparation = max(maxTrueSeparation,
+                                        simd_distance(anchors[sites[i].id]!, anchors[sites[j].id]!))
+            }
+        }
+        for i in sites.indices {
+            for j in i + 1..<sites.count {
+                let a = anchors[sites[i].id]!, b = anchors[sites[j].id]!
+                guard simd_distance(a, b) >= maxTrueSeparation * 0.55 else { continue }
+                let pa = try XCTUnwrap(board.sitePositions[sites[i].id])
+                let pb = try XCTUnwrap(board.sitePositions[sites[j].id])
+                let trueBearing = atan2(b.y - a.y, b.x - a.x)
+                let boardBearing = atan2(pb.y - pa.y, pb.x - pa.x)
+                var delta = abs(boardBearing - trueBearing)
+                if delta > .pi { delta = 2 * .pi - delta }
+                XCTAssertLessThan(delta, 0.6,
+                                  "\(sites[i].id)→\(sites[j].id) keeps its true direction (delta \(delta * 180 / .pi)°)")
+            }
         }
 
         // And no two buildings interpenetrate anywhere.

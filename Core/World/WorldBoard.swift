@@ -169,16 +169,27 @@ struct WorldBoard {
         // each site's true bearing so the relative geography the projection
         // produced survives being made walkable (dense metro clusters bloom
         // radially instead of being re-packed into a generic village).
+        // When the full address list crowds the board, footprints shrink a
+        // little (the scene builds meshes from footprints, so visuals follow).
+        let buildingScale = WorldBoard.footprintScale(for: geocoded)
         var footprints: [String: BoardRect] = [:]
         for site in geocoded {
             guard let p = positions[site.id] else { continue }
             let size = WorldBoard.buildingSize(category: site.scopeLabel,
-                                               phase: site.phase)
+                                               phase: site.phase) * buildingScale
             footprints[site.id] = BoardRect.size(size.x, size.y, at: p)
         }
+        // Bearings radiate from the cloud's MEDIAN anchor, not its bounding
+        // box center: one far outlier (a Bay Area job) drags the box center
+        // most of the way out of town, which would seat the whole LA basin in
+        // a single south-east lane. The median stays inside the dense cluster
+        // where the work is, so metro sites fan out in every direction and
+        // far cities sit at their true bearings FROM the metro — how a CA map
+        // is actually read.
+        let medianAnchor = WorldBoard.medianAnchor(of: positions)
         WorldBoard.spreadAlongBearings(&footprints,
                                        anchors: positions,
-                                       around: regionCenter,
+                                       around: medianAnchor,
                                        office: officeFootprint)
 
         // Positions follow their (possibly nudged) footprints.
@@ -202,6 +213,41 @@ struct WorldBoard {
     }
 
     // MARK: Building size by what the project is
+
+    /// The robust center of the site cloud: median x, median y of the true
+    /// anchors. Unlike a bounding box (or mean), one far-flung job cannot
+    /// drag it out of the metro the work concentrates in.
+    static func medianAnchor(of positions: [String: SIMD2<Float>]) -> SIMD2<Float> {
+        guard !positions.isEmpty else { return .zero }
+        let xs = positions.values.map(\.x).sorted()
+        let ys = positions.values.map(\.y).sorted()
+        let mid = xs.count / 2
+        let medianX = xs.count % 2 == 1 ? xs[mid] : (xs[mid - 1] + xs[mid]) / 2
+        let medianY = ys.count % 2 == 1 ? ys[mid] : (ys[mid - 1] + ys[mid]) / 2
+        return SIMD2(medianX, medianY)
+    }
+
+    /// How much footprints shrink when the board is too crowded for every
+    /// building at full size. A dozen sites keep full size; the full real
+    /// list (~42 addressed jobs) shrinks ~10-15% — perceptible only side by
+    /// side, and the whole board stays walkable instead of clogged.
+    static func footprintScale(for sites: [WorldSite]) -> Float {
+        guard sites.count > 4 else { return 1 }
+        let layoutMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
+                              -WorldBoard.size.y / 2 + 3.0)
+        let layoutMax = WorldBoard.size / 2 - SIMD2(Float(3.0), Float(3.0))
+        let usable = (layoutMax.x - layoutMin.x) * (layoutMax.y - layoutMin.y)
+        let officeArea: Float = 9.0 * 7.0 * 1.6
+        // Radial packing fills roughly two thirds of the circle area it needs.
+        let available = max((usable - officeArea) * 0.65, 1)
+        var needed: Float = 0
+        for site in sites {
+            let size = WorldBoard.buildingSize(category: site.scopeLabel, phase: site.phase)
+            let radius = simd_length(size) / 2 + WorldBoard.buildingGap / 2
+            needed += .pi * radius * radius
+        }
+        return needed <= available ? 1 : max(sqrt(available / needed), 0.62)
+    }
 
     /// Footprint of one site's building, from its real category and phase.
     /// The scene builds its mesh from the same numbers, so the geometry a
@@ -238,25 +284,18 @@ struct WorldBoard {
         return CLLocationCoordinate2D(latitude: lat, longitude: lng)
     }
 
-    /// Resolve building overlaps WITHOUT re-shuffling the map. Two rules,
-    /// in order:
-    ///
-    /// 1. BEARING FIRST: a building may slide outward along the bearing of
-    ///    its true projected position from the board center until its
-    ///    clearance circle clears everything already placed — so directions
-    ///    and neighbor ordering survive being made walkable, and a dense
-    ///    metro cluster blooms radially instead of being re-packed into a
-    ///    generic village.
-    /// 2. NEAREST FREE SPOT: a bearing that fills to the rim falls back to a
-    ///    deterministic spiral around the site's TRUE projected point — the
-    ///    minimum displacement from where the geography says it belongs.
-    ///
-    /// Clearance circles use the box half-diagonal, which contains the
-    /// axis-aligned box in any orientation: two circles that clear each other
-    /// (plus the gap) leave their boxes disjoint, so overlaps are impossible
-    /// by construction — there is no re-packing pass to bend geography.
-    /// Deterministic: sites are placed farthest-from-center first (outer truth
-    /// anchors the rim), ties break by id, and the spiral steps are fixed.
+    /// Resolve building overlaps WITHOUT re-shuffling the map, preserving the
+    /// relative geography the projection produced. Buildings seat on a fixed
+    /// rectangular LATTICE whose cells clear the largest footprint, so
+    /// neighbors can never interpenetrate (by construction — there is no
+    /// re-packing pass to bend geography). Each site takes the free lattice
+    /// cell nearest its TRUE projected anchor; sites seat
+    /// farthest-from-median first, so far-flung jobs land on their true spots
+    /// almost exactly and a dense metro cluster fills the cells around where
+    /// the metro actually is. The honesty traded away is cell granularity:
+    /// sites closer together than one cell (the crushed metro at state
+    /// scale) sit in adjacent cells in deterministic order — their cluster
+    /// shape tracks truth, their exact offsets do not.
     private static func spreadAlongBearings(_ rects: inout [String: BoardRect],
                                             anchors: [String: SIMD2<Float>],
                                             around center: SIMD2<Float>,
@@ -265,23 +304,41 @@ struct WorldBoard {
                               -WorldBoard.size.y / 2 + 3.0)
         let layoutMax = WorldBoard.size / 2 - SIMD2(Float(3.0), Float(3.0))
 
-        func circleRadius(_ r: BoardRect) -> Float {
-            simd_length(r.halfExtents) + WorldBoard.buildingGap / 2
-        }
-        // The office lot participates as an obstacle from the start.
-        var placed: [(center: SIMD2<Float>, radius: Float)] = [
-            (office.center, circleRadius(office))
-        ]
+        // Cell size clears the LARGEST footprint (all cells equivalent),
+        // plus the building gap on both sides.
+        let widest = rects.values.reduce(Float(0)) { max($0, $1.halfExtents.x * 2) }
+        let maxDepth = rects.values.reduce(Float(0)) { max($0, $1.halfExtents.y * 2) }
 
-        func isFree(_ c: SIMD2<Float>, _ rect: BoardRect) -> Bool {
-            guard c.x - rect.halfExtents.x >= layoutMin.x,
-                  c.x + rect.halfExtents.x <= layoutMax.x,
-                  c.y - rect.halfExtents.y >= layoutMin.y,
-                  c.y + rect.halfExtents.y <= layoutMax.y else { return false }
-            let radius = circleRadius(rect)
-            return placed.allSatisfy { simd_distance($0.center, c) >= $0.radius + radius }
+        func fits(_ c: SIMD2<Float>, _ rect: BoardRect) -> Bool {
+            let half = rect.halfExtents
+            let inLayout = c.x - half.x >= layoutMin.x && c.x + half.x <= layoutMax.x &&
+                c.y - half.y >= layoutMin.y && c.y + half.y <= layoutMax.y
+            guard inLayout else { return false }
+            let candidate = BoardRect(center: c, halfExtents: half)
+            return !candidate.overlaps(office, gap: WorldBoard.buildingGap)
         }
 
+        // A rectangular lattice sized to the largest footprint (plus the gap
+        // on both sides): one cell per building, ever, so neighbors can never
+        // interpenetrate. The board is portrait; a plain grid packs it far
+        // better than a hex one, whose wide columns waste the narrow deck.
+        let cellWidth = widest + WorldBoard.buildingGap * 2
+        let cellDepth = maxDepth + WorldBoard.buildingGap * 2
+        func cellCenter(_ i: Int, _ j: Int) -> SIMD2<Float> {
+            SIMD2(cellWidth * Float(i), cellDepth * Float(j))
+        }
+        func nearestCell(to p: SIMD2<Float>) -> (i: Int, j: Int) {
+            (Int((p.x / cellWidth).rounded()), Int((p.y / cellDepth).rounded()))
+        }
+
+        var taken = Set<String>()
+        func seat(_ id: String, _ i: Int, _ j: Int) {
+            taken.insert("\(i),\(j)")
+            rects[id]?.center = cellCenter(i, j)
+        }
+
+        // Deterministic order: farthest true anchor from the median first —
+        // outer truth anchors the board, the metro fills in last.
         let order = rects.keys.sorted {
             let da = simd_distance(anchors[$0] ?? center, center)
             let db = simd_distance(anchors[$1] ?? center, center)
@@ -291,57 +348,46 @@ struct WorldBoard {
         for id in order {
             guard let rect = rects[id] else { continue }
             let anchor = anchors[id] ?? center
+            let home = nearestCell(to: anchor)
 
-            // Rule 1: outward along the true bearing.
-            var dir = anchor - center
-            var distance0 = simd_length(dir)
-            if distance0 < 0.001 {
-                // The exact centroid: a deterministic bearing (golden angle
-                // by placement order) so it fans out like the rest.
-                let index = Float(order.firstIndex(of: id) ?? 0)
-                dir = SIMD2(cos(index * 2.399_963), sin(index * 2.399_963))
-                distance0 = 0.001
-            }
-            let u = dir / distance0
-            var spot: SIMD2<Float>? = nil
-            var r = distance0
-            while r < 400 {
-                let c = center + u * r
-                if !isFree(c, rect) {
-                    // Stop when the whole box has left the board on this ray.
-                    let offBoard = c.x + rect.halfExtents.x < layoutMin.x ||
-                        c.x - rect.halfExtents.x > layoutMax.x ||
-                        c.y + rect.halfExtents.y < layoutMin.y ||
-                        c.y - rect.halfExtents.y > layoutMax.y
-                    if offBoard { break }
-                    r += 0.25
+            // Ring 0 is the home cell; each Chebyshev ring after wraps it.
+            // Candidates within a ring are tried nearest-to-truth first
+            // (distance, then angle, then cell coords — all deterministic).
+            var seatedHere = false
+            search: for ring in 0...12 {
+                var ringCells: [(i: Int, j: Int)] = []
+                if ring == 0 {
+                    ringCells.append(home)
                 } else {
-                    spot = c
-                    break
-                }
-            }
-
-            // Rule 2: nearest free spot around the true projected point.
-            if spot == nil {
-                var ring: Float = 0.5
-                search: while ring <= 40 {
-                    let spokes = max(8, Int(ring * 2))
-                    for k in 0..<spokes {
-                        let a = Float(k) / Float(spokes) * 2 * .pi + ring * 0.35
-                        let c = anchor + SIMD2(cos(a), sin(a)) * ring
-                        if isFree(c, rect) { spot = c; break search }
+                    for di in -ring...ring {
+                        for dj in -ring...ring where max(abs(di), abs(dj)) == ring {
+                            ringCells.append((home.i + di, home.j + dj))
+                        }
                     }
-                    ring += 0.5
+                }
+                let candidates = ringCells
+                    .filter { !taken.contains("\($0.i),\($0.j)") }
+                    .map { cell -> (cell: (i: Int, j: Int), c: SIMD2<Float>, d: Float, a: Float) in
+                        let c = cellCenter(cell.i, cell.j)
+                        let delta = c - anchor
+                        return (cell, c, simd_length(delta), atan2(delta.y, delta.x))
+                    }
+                    .filter { fits($0.c, rect) }
+                    .sorted { ($0.d, $0.a, $0.cell.i, $0.cell.j) < ($1.d, $1.a, $1.cell.i, $1.cell.j) }
+                if let best = candidates.first {
+                    seat(id, best.cell.i, best.cell.j)
+                    seatedHere = true
+                    break search
                 }
             }
 
-            // A board with no free spot left (dozens more sites than today):
-            // clamp the true point and let the geometry be as honest as it can.
-            let c = spot ?? SIMD2(
-                min(max(anchor.x, layoutMin.x + rect.halfExtents.x), layoutMax.x - rect.halfExtents.x),
-                min(max(anchor.y, layoutMin.y + rect.halfExtents.y), layoutMax.y - rect.halfExtents.y))
-            rects[id]?.center = c
-            placed.append((c, circleRadius(rect)))
+            // A board with no cell left (far more sites than today): clamp
+            // the true point and let the geometry be as honest as it can.
+            if !seatedHere {
+                rects[id]?.center = SIMD2(
+                    min(max(anchor.x, layoutMin.x + rect.halfExtents.x), layoutMax.x - rect.halfExtents.x),
+                    min(max(anchor.y, layoutMin.y + rect.halfExtents.y), layoutMax.y - rect.halfExtents.y))
+            }
         }
     }
 }
