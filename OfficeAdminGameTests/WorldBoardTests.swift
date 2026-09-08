@@ -4,6 +4,7 @@
 //  The board layout and walking rules — pure functions, so they're tested
 //  straight against known coordinates and hand-built rects.
 
+import CoreLocation
 import XCTest
 @testable import OfficeAdminGame
 
