@@ -77,10 +77,14 @@ platform :ios do
       UI.success("Created app '#{APP_NAME}' on App Store Connect with ID #{app.id}")
     end
 
+    store_certs = Spaceship::ConnectAPI::Certificate.all.filter_map { |c| c.id if c.name.to_s.start_with?("Apple Distribution") }
+    UI.user_error!("No Apple Distribution certificate visible to the API key") if store_certs.empty?
     sigh(
       app_identifier: BUNDLE_ID,
       api_key: api_key,
       team_id: TEAM_ID,
+      cert_id: store_certs.first,
+      force: true,
       provisioning_name: STORE_PROFILE,
       ignore_profiles_with_different_name: true,
       filename: "OfficeAdminGameStore.mobileprovision",
@@ -144,7 +148,7 @@ platform :ios do
       skip_package_ipa: true,
       skip_archive: false,
       archive_path: ARCHIVE_PATH,
-      xcargs: "OTHER_CODE_SIGN_FLAGS=\"--keychain #{BUILD_KEYCHAIN}\""
+      xcargs: "OTHER_CODE_SIGN_FLAGS=\"--keychain #{BUILD_KEYCHAIN}\" TARGETED_DEVICE_FAMILY=1"
     )
 
     sh("rm -rf /tmp/oag_pack && mkdir -p /tmp/oag_pack/Payload")
