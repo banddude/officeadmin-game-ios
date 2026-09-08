@@ -8,6 +8,7 @@ import SwiftUI
 
 struct RootView: View {
     @State private var store = GameStore()
+    @State private var showingConnectionSetup = false
 
     var body: some View {
         ZStack {
@@ -22,6 +23,41 @@ struct RootView: View {
                 WorldSceneView(store: store)
             case .failed(let message):
                 FailureView(message: message, store: store)
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if store.phase == .ready {
+                Button {
+                    showingConnectionSetup = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Theme.ink.opacity(0.72))
+                        .padding(12)
+                        .background(Circle().fill(Theme.parchment))
+                }
+                .accessibilityLabel("Connection settings")
+                .padding(.trailing, 18)
+                .padding(.bottom, 18)
+            }
+        }
+        .fullScreenCover(isPresented: $showingConnectionSetup) {
+            ZStack(alignment: .topTrailing) {
+                Theme.paper.ignoresSafeArea()
+                SetupView(store: store) {
+                    showingConnectionSetup = false
+                }
+                Button {
+                    showingConnectionSetup = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(Theme.ink.opacity(0.65))
+                        .padding(10)
+                        .background(Circle().fill(Theme.parchment))
+                }
+                .accessibilityLabel("Close connection settings")
+                .padding(18)
             }
         }
         .task { store.restoreSession() }
@@ -75,6 +111,7 @@ struct RootView: View {
 
 struct SetupView: View {
     let store: GameStore
+    var onConnected: (() -> Void)? = nil
 
     @State private var baseURLText = ""
     @State private var apiKey = ""
@@ -175,7 +212,11 @@ struct SetupView: View {
         Task {
             let ok = await store.connect(baseURL: url, apiKey: apiKey)
             checking = false
-            if !ok { rejected = true }
+            if ok {
+                onConnected?()
+            } else {
+                rejected = true
+            }
         }
     }
 }
