@@ -34,6 +34,27 @@ struct GameCredentials: Codable, Equatable {
             organizationId: organizationId?.isEmpty == false ? organizationId : nil)
     }
 
+    /// Build-time bootstrap credentials are generated into the app bundle on
+    /// trusted build machines. The source file is ignored by git and the
+    /// values are never copied into source code.
+    static func fromBootstrapBundle(_ bundle: Bundle = .main) -> GameCredentials? {
+        guard let plistURL = bundle.url(forResource: "BootstrapCredentials", withExtension: "plist"),
+              let data = try? Data(contentsOf: plistURL),
+              let plist = try? PropertyListSerialization.propertyList(from: data, format: nil),
+              let values = plist as? [String: Any],
+              let base = values["baseURL"] as? String,
+              let baseURL = URL(string: base),
+              let apiKey = (values["apiKey"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !apiKey.isEmpty else { return nil }
+
+        let organizationId = (values["organizationId"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return GameCredentials(
+            baseURL: baseURL,
+            apiKey: apiKey,
+            organizationId: organizationId?.isEmpty == false ? organizationId : nil)
+    }
+
     /// The base URL normalized to end with exactly one trailing slash-less
     /// form, so `baseURL.appending(path:...)` never double-slashes.
     var normalizedBase: URL {
