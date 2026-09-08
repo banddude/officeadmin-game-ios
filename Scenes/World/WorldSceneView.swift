@@ -1,43 +1,69 @@
 //  WorldSceneView.swift
 //  OfficeAdminGame
 //
-//  The 3D world the game opens into: real geography, your job sites on it,
-//  your crew standing where the data says they are. Tapping a site travels
-//  there (the camera swoops in); the door button walks you into the office.
+//  The world the game opens into: a walkable RealityKit diorama of the real
+//  job sites, with the HUD cards from the approved mockup floating over it.
+//  The player walks with the thumbstick or by tapping the ground; walking up
+//  to a site shows its card, walking into an attention pickup opens it, and
+//  stepping through the office door goes inside.
 
 import SwiftUI
 
 struct WorldSceneView: View {
     @Bindable var store: GameStore
     var artProvider: any WorldArtProviding = WorldArt.provider
-    @State private var selectedSite: WorldSite?
+
+    @State private var moveInput = SIMD2<Float>.zero
+    @State private var nearSiteID: String?
     @State private var showingOffice = false
+    @State private var pickup: WorldPickup?
+    @State private var actionError: String?
+    @State private var showHint = true
 
     var body: some View {
         ZStack {
-            WorldMapView(
-                sites: store.world.sites,
-                selectedSiteID: store.traveledSiteID,
-                onSelectSite: { site in
-                    store.travel(to: site.id)
-                    selectedSite = site
+            WorldRealityView(
+                world: store.world,
+                moveInput: moveInput,
+                onNearSite: { id in
+                    withAnimation(.snappy(duration: 0.25)) { nearSiteID = id }
+                },
+                onPickup: { target in
+                    withAnimation(.snappy(duration: 0.25)) { pickup = target }
+                },
+                onEnterOffice: {
+                    moveInput = .zero
+                    showingOffice = true
                 },
                 artProvider: artProvider)
+                .ignoresSafeArea()
 
             chrome
 
-            if let site = selectedSite {
+            if let site = nearSite, pickup == nil {
                 SiteCardView(site: site) {
-                    withAnimation(.snappy(duration: 0.25)) { selectedSite = nil }
+                    withAnimation(.snappy(duration: 0.25)) { nearSiteID = nil }
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+        }
+        .overlay(alignment: .bottom) {
+            pickupCard
         }
         .fullScreenCover(isPresented: $showingOffice) {
             OfficeSceneView(store: store) {
                 showingOffice = false
             }
         }
+        .task {
+            try? await Task.sleep(for: .seconds(9))
+            withAnimation(.easeOut(duration: 1)) { showHint = false }
+        }
+    }
+
+    private var nearSite: WorldSite? {
+        guard let nearSiteID else { return nil }
+        return store.world.sites.first { $0.id == nearSiteID }
     }
 
     // MARK: Chrome
@@ -95,39 +121,43 @@ struct WorldSceneView: View {
             }
             .frame(maxWidth: .infinity, alignment: .topTrailing)
 
-            VStack {
-                Spacer()
-                HStack {
-                    Button {
-                        showingOffice = true
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "house.fill")
-                                .font(.system(size: 22, weight: .semibold))
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text("Shaffer office")
-                                    .font(Theme.rounded(14, .bold))
-                                Text("Go inside")
-                                    .font(Theme.rounded(11, .medium))
-                                    .opacity(0.72)
-                            }
-                        }
-                        .foregroundStyle(Theme.ink)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(Theme.parchment.opacity(0.96))
-                                .shadow(color: .black.opacity(0.14), radius: 9, y: 3)
-                        )
-                    }
-                    Spacer()
-                }
-            }
+            bottomControls
         }
         .padding(.horizontal, 18)
         .padding(.top, 12)
         .padding(.bottom, 20)
+    }
+
+    /// The thumbstick plus a fading first-time hint.
+    private var bottomControls: some View {
+        VStack {
+            Spacer()
+            HStack(alignment: .bottom) {
+                JoystickView { moveInput = $0 }
+                Spacer()
+                if showHint {
+                    VStack(spacing: 6) {
+                        Image(systemName: "hand.tap.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(Theme.clay)
+                        Text("Tap the ground to walk.\nVisit your sites — the door goes inside.")
+                            .font(Theme.rounded(13, .semibold))
+                            .foregroundStyle(Theme.ink.opacity(0.75))
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Theme.parchment.opacity(0.95))
+                            .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+                    )
+                    .padding(.trailing, 4)
+                    .padding(.bottom, 12)
+                    .allowsHitTesting(false)
+                }
+            }
+        }
     }
 
     private var approvalDetail: String {
@@ -142,8 +172,62 @@ struct WorldSceneView: View {
         return "\(note.customerName) · \(note.amountDueCents.moneyString)"
     }
 
+    // MARK: Pickup cards
+
+    /// The card for whatever the player just walked into, presented in the
+    /// world: approvals reuse the office mail card (actions write through
+    /// the real API); invoice notes show the money that needs chasing.
+    @ViewBuilder
+    private var pickupCard: some View {
+        if let target = pickup {
+            VStack(spacing: 8) {
+                switch target {
+                case .mail(let id):
+                    if let mail = store.world.mail.first(where: { $0.id == id }) {
+                        MailCardView(
+                            mail: mail,
+                            crewNames: store.world.crew.filter { !$0.isPlayer }.map(\.name),
+                            isBusy: performingAction,
+                            onDismiss: { dismissPickup() },
+                            onAction: { kind, note, delegateTo in
+                                Task {
+                                    let ok = await store.perform(kind, on: mail, note: note, delegateTo: delegateTo)
+                                    if ok { dismissPickup() } else {
+                                        actionError = "The server wouldn't take it. Try again."
+                                    }
+                                }
+                            })
+                        if let actionError {
+                            Text(actionError)
+                                .font(Theme.rounded(13, .semibold))
+                                .foregroundStyle(.white)
+                                .padding(10)
+                                .background(Capsule().fill(Theme.brick))
+                        }
+                    }
+                case .invoice(let id):
+                    if let note = store.world.whiteboard.first(where: { $0.id == id }) {
+                        InvoiceNoteCard(note: note, onDismiss: { dismissPickup() })
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 132)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    private var performingAction: Bool {
+        store.phase == .loading
+    }
+
+    private func dismissPickup() {
+        actionError = nil
+        withAnimation(.snappy(duration: 0.25)) { pickup = nil }
+    }
 }
 
+// MARK: - Attention cards (top right)
 
 private struct WorldAttentionCard: View {
     let kind: WorldArt.AttentionKind
@@ -197,6 +281,58 @@ private struct WorldAttentionCard: View {
     }
 }
 
+// MARK: - Invoice note card (money as an in-world encounter)
+
+private struct InvoiceNoteCard: View {
+    let note: WorldWhiteboardNote
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                Image(systemName: "banknote.fill")
+                    .font(.system(size: 26))
+                    .foregroundStyle(note.isUrgent ? Theme.brick : Theme.honey)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(note.invoiceNumber) — \(note.customerName)")
+                        .font(Theme.rounded(18, .bold))
+                        .foregroundStyle(Theme.ink)
+                    Text(dueLine)
+                        .font(Theme.rounded(14))
+                        .foregroundStyle(Theme.ink.opacity(0.65))
+                }
+                Spacer()
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(Theme.ink.opacity(0.6))
+                        .padding(8)
+                        .background(Circle().fill(Theme.paper))
+                }
+            }
+
+            HStack(spacing: 10) {
+                Text(note.amountDueCents.moneyString)
+                    .font(Theme.rounded(24, .bold))
+                    .foregroundStyle(Theme.ink)
+                Spacer()
+                Text("The money stack on the office desk follows this too.")
+                    .font(Theme.rounded(12))
+                    .foregroundStyle(Theme.ink.opacity(0.55))
+                    .multilineTextAlignment(.trailing)
+            }
+        }
+        .worldCard()
+    }
+
+    private var dueLine: String {
+        switch note.state {
+        case .overdue(let days): return "Overdue by \(days) day\(days == 1 ? "" : "s")"
+        case .comingDue(let days): return "Due in \(days) day\(days == 1 ? "" : "s")"
+        case .current: return "Current"
+        }
+    }
+}
 
 // MARK: - Site card (in-world, not a list)
 
@@ -261,6 +397,7 @@ struct SiteCardView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
         }
+        .allowsHitTesting(true)
     }
 
     private var phaseChip: some View {

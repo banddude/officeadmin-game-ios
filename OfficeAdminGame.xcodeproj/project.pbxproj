@@ -23,8 +23,8 @@
 		0A021E5CC17F67F81D39AB5B /* Scenes/Office/JoystickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE9D473B47C5FAC0FEAC693D /* Scenes/Office/JoystickView.swift */; };
 		F5AB3646637EF76F577088DD /* Scenes/Office/OfficeRealityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EFD757D2FF81BCC38B5EC7D /* Scenes/Office/OfficeRealityView.swift */; };
 		51D2CAB9D29287284047C048 /* Scenes/Office/OfficeSceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41904CF139628289551B4C21 /* Scenes/Office/OfficeSceneView.swift */; };
-		82876B849D64E029C0C01B00 /* Scenes/World/SiteMarkerArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59E86E30AAEFF47E877871B2 /* Scenes/World/SiteMarkerArt.swift */; };
-		CEF18D6F6393316648733A8A /* Scenes/World/WorldMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B78CB48157F92F3C9C2FCD82 /* Scenes/World/WorldMapView.swift */; };
+		92400DBA98D1F3F5C9C2A664 /* Scenes/World/WorldPropFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310BB80D53E0C55A2B81387B /* Scenes/World/WorldPropFactory.swift */; };
+		1FD320AE9EB5A52323FB8ADB /* Scenes/World/WorldRealityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A5D6C5A8D863B9FB465BC2 /* Scenes/World/WorldRealityView.swift */; };
 		14E31CDC376CB2A5B981D7E5 /* Scenes/World/WorldSceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1254F677C8C35039A107E598 /* Scenes/World/WorldSceneView.swift */; };
 		25348607EA51E78D2547E08D /* Core/API/OAClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9CA3E265EFAC1E6BE770FD5 /* Core/API/OAClient.swift */; };
 		0F803CBA8A24D5805CCD108B /* Core/API/OAWireModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A650BBED79A410D4E8DBCF4 /* Core/API/OAWireModels.swift */; };
@@ -75,8 +75,8 @@
 		CE9D473B47C5FAC0FEAC693D /* Scenes/Office/JoystickView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoystickView.swift; sourceTree = "<group>"; };
 		6EFD757D2FF81BCC38B5EC7D /* Scenes/Office/OfficeRealityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficeRealityView.swift; sourceTree = "<group>"; };
 		41904CF139628289551B4C21 /* Scenes/Office/OfficeSceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficeSceneView.swift; sourceTree = "<group>"; };
-		59E86E30AAEFF47E877871B2 /* Scenes/World/SiteMarkerArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteMarkerArt.swift; sourceTree = "<group>"; };
-		B78CB48157F92F3C9C2FCD82 /* Scenes/World/WorldMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldMapView.swift; sourceTree = "<group>"; };
+		310BB80D53E0C55A2B81387B /* Scenes/World/WorldPropFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldPropFactory.swift; sourceTree = "<group>"; };
+		A0A5D6C5A8D863B9FB465BC2 /* Scenes/World/WorldRealityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldRealityView.swift; sourceTree = "<group>"; };
 		1254F677C8C35039A107E598 /* Scenes/World/WorldSceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldSceneView.swift; sourceTree = "<group>"; };
 		0174C0329AFC5F769145E7C6 /* OfficeAdminGame.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OfficeAdminGame.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5D972B2C1A195542FCC97F86 /* OfficeAdminGameTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OfficeAdminGameTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -195,8 +195,8 @@
 		B8C9A0509AFB09AC8B0E9419 /* Scenes/World */ = {
 			isa = PBXGroup;
 			children = (
-				59E86E30AAEFF47E877871B2 /* Scenes/World/SiteMarkerArt.swift */,
-				B78CB48157F92F3C9C2FCD82 /* Scenes/World/WorldMapView.swift */,
+				310BB80D53E0C55A2B81387B /* Scenes/World/WorldPropFactory.swift */,
+				A0A5D6C5A8D863B9FB465BC2 /* Scenes/World/WorldRealityView.swift */,
 				1254F677C8C35039A107E598 /* Scenes/World/WorldSceneView.swift */,
 			);
 			path = World;
@@ -353,8 +353,8 @@
 				0A021E5CC17F67F81D39AB5B /* Scenes/Office/JoystickView.swift in Sources */,
 				F5AB3646637EF76F577088DD /* Scenes/Office/OfficeRealityView.swift in Sources */,
 				51D2CAB9D29287284047C048 /* Scenes/Office/OfficeSceneView.swift in Sources */,
-				82876B849D64E029C0C01B00 /* Scenes/World/SiteMarkerArt.swift in Sources */,
-				CEF18D6F6393316648733A8A /* Scenes/World/WorldMapView.swift in Sources */,
+				92400DBA98D1F3F5C9C2A664 /* Scenes/World/WorldPropFactory.swift in Sources */,
+				1FD320AE9EB5A52323FB8ADB /* Scenes/World/WorldRealityView.swift in Sources */,
 				14E31CDC376CB2A5B981D7E5 /* Scenes/World/WorldSceneView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

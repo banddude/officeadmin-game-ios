@@ -74,6 +74,9 @@ struct WorldBoard: Equatable {
     static let size = SIMD2<Float>(72, 48)
     /// Sites are laid out inside the board inset by this much.
     static let padding: Float = 9
+    /// The west edge is scenery (ocean and beach, like the mockup) — sites
+    /// are laid out east of it. Mirrors the ground's water band width.
+    static let sceneryWidth: Float = size.x * 0.16 + 3.2
     /// Where the world sits when no site geocodes.
     static let losAngelesCenter = CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
     /// Building footprints never come closer than this to each other.
@@ -105,7 +108,8 @@ struct WorldBoard: Equatable {
         let originMeters = WorldBoard.mercatorMeters(origin)
 
         // Project every site to meters around the origin, then fit the whole
-        // cloud into the padded board with a single uniform scale.
+        // cloud into the padded board (east of the scenery band) with a
+        // single uniform scale.
         var unitsPerMeter: Float = 1
         var positions: [String: SIMD2<Float>] = [:]
         if !geocoded.isEmpty {
@@ -117,7 +121,13 @@ struct WorldBoard: Equatable {
                 lo = simd_min(lo, SIMD2<Float>(item.m))
                 hi = simd_max(hi, SIMD2<Float>(item.m))
             }
-            let usable = WorldBoard.size - SIMD2(WorldBoard.padding * 2, WorldBoard.padding * 2)
+            // The region sites may occupy: padded, and clear of the ocean.
+            let regionMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
+                                  -WorldBoard.size.y / 2 + WorldBoard.padding)
+            let regionMax = SIMD2(WorldBoard.size.x / 2 - WorldBoard.padding,
+                                  WorldBoard.size.y / 2 - WorldBoard.padding)
+            let usable = regionMax - regionMin
+            let regionCenter = (regionMin + regionMax) / 2
             let span = hi - lo
             // Scale to fit (a degenerate cluster keeps a sane human scale).
             if span.x > 0.001 || span.y > 0.001 {
@@ -126,18 +136,19 @@ struct WorldBoard: Equatable {
                     usable.y / max(span.y, 0.001),
                     12) // a tight cluster of sites stays a tight cluster
             }
-            // Center the (already uniform-scaled) cloud on the board.
-            let boardCenter = (lo + hi) / 2 * unitsPerMeter
+            let cloudCenter = (lo + hi) / 2 * unitsPerMeter
             for item in meters {
-                let b = SIMD2<Float>(item.m) * unitsPerMeter - boardCenter
+                let b = SIMD2<Float>(item.m) * unitsPerMeter - cloudCenter
                 // Board y is south; Mercator meters y grows north.
-                positions[item.id] = SIMD2(b.x, -b.y)
+                positions[item.id] = regionCenter + SIMD2(b.x, -b.y)
             }
         }
 
+        // The office lives in the south-east corner, seated so its door (on
+        // the south face) stays inside the walkable board.
         officePosition = SIMD2(
-            WorldBoard.size.x / 2 - 7.0,
-            WorldBoard.size.y / 2 - 5.8)
+            WorldBoard.size.x / 2 - 6.8,
+            WorldBoard.size.y / 2 - 7.2)
         officeFootprint = BoardRect.size(9.6, 7.2, at: officePosition)
         walkableRect = BoardRect(
             min: -WorldBoard.size / 2 + SIMD2(2.4, 2.4),
@@ -216,7 +227,9 @@ struct WorldBoard: Equatable {
     /// in id order and nudged along the short axis each time.
     private static func separate(_ rects: inout [String: BoardRect], from office: BoardRect) {
         let ids = rects.keys.sorted()
-        let layoutLimit = WorldBoard.size / 2 - SIMD2(Float(3.0), Float(3.0))
+        let layoutMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
+                              -WorldBoard.size.y / 2 + 3.0)
+        let layoutMax = WorldBoard.size / 2 - SIMD2(Float(3.0), Float(3.0))
         for _ in 0..<10 {
             var movedAnything = false
             for i in ids.indices {
@@ -250,8 +263,8 @@ struct WorldBoard: Equatable {
             for id in ids {
                 guard var rect = rects[id] else { continue }
                 let clamped = BoardRect(
-                    min: simd_max(SIMD2(rect.minX, rect.minY), -layoutLimit),
-                    max: simd_min(SIMD2(rect.maxX, rect.maxY), layoutLimit))
+                    min: simd_max(SIMD2(rect.minX, rect.minY), layoutMin),
+                    max: simd_min(SIMD2(rect.maxX, rect.maxY), layoutMax))
                 if clamped.center != rect.center { movedAnything = true }
                 rect.center = clamped.center
                 rects[id] = rect

@@ -30,8 +30,13 @@ The mapper turns real records into world entities and is pure and unit-tested:
 
 ## Scenes
 
-- `World/` the 3D world map. MapKit provides real geography; RealityKit or SceneKit renders
-  stylized 3D sites, roads, and characters on top of it. Tap a site to travel there.
+- `World/` the game world: a RealityKit diorama board. `WorldBoard` (pure, in Core)
+  projects real site coordinates (Web Mercator, meters) onto a padded local board —
+  Los Angeles center as fallback — with building footprints by category and the office
+  as the home node in its corner. The player walks a little character with a thumbstick
+  or by tapping the ground/buildings; the camera follows. Walking up to a site shows its
+  card, walking into an attention pickup opens it, and the office door goes inside.
+  Apple Maps is never the visual — CLGeocoder is the only MapKit-adjacent dependency.
 - `Office/` a walkable 3D office interior. Desk, mail, phone, whiteboard, calendar.
 - `Site/` a job-site close-up: progress, crew present, what is needed.
 
@@ -40,7 +45,8 @@ The mapper turns real records into world entities and is pure and unit-tested:
 - `App/` app entry and navigation between scenes
 - `Core/API/` typed client for the OfficeAdmin endpoints this app uses
 - `Core/Auth/` Keychain-backed credential store
-- `Core/World/` mappers from API records to world state, with tests
+- `Core/World/` mappers from API records to world state, the board projection and
+  walk rules (`WorldBoard`, `WorldWalk`), with tests
 - `Scenes/World`, `Scenes/Office`, `Scenes/Site`
 - `Assets/` stylized low-poly models and materials (original or permissively licensed only)
 - `docs/` this file and endpoint notes
