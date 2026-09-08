@@ -1,0 +1,159 @@
+default_platform(:ios)
+
+API_KEY_ID    = "648T4ZFBK4"
+API_ISSUER_ID = "0f46b7ee-3ca3-47c0-a1e5-567cd69a6f2b"
+API_KEY_PATH  = "#{ENV["HOME"]}/.appstoreconnect/private_keys/AuthKey_648T4ZFBK4.p8"
+TEAM_ID       = "6D4T7VB2AF"
+
+IOSAPP_DIR   = "#{ENV["HOME"]}/agent-worktrees/officeadmin-game-ios-tf"
+PROJECT_PATH = "#{IOSAPP_DIR}/OfficeAdminGame.xcodeproj"
+ARCHIVE_PATH = "#{IOSAPP_DIR}/build/OfficeAdminGame.xcarchive"
+IPA_PATH     = "#{IOSAPP_DIR}/build/OfficeAdminGame.ipa"
+
+DIST_CERT     = "Apple Distribution: Michael Shaffer (6D4T7VB2AF)"
+STORE_PROFILE = "OfficeAdmin Game Store Apple Dist"
+BUNDLE_ID     = "com.officeadmin.game"
+APP_NAME      = "OfficeAdmin Game"
+APP_SKU       = "officeadmin-game"
+
+BUILD_KEYCHAIN = "#{ENV["HOME"]}/Library/Keychains/aiva-build.keychain-db"
+
+platform :ios do
+  private_lane :asc_api_key do
+    app_store_connect_api_key(
+      key_id: API_KEY_ID,
+      issuer_id: API_ISSUER_ID,
+      key_filepath: API_KEY_PATH,
+      in_house: false
+    )
+  end
+
+  private_lane :prep_keychain do
+    password = ENV["AIVA_BUILD_KEYCHAIN_PASSWORD"]
+    unless password.to_s.empty?
+      sh("security unlock-keychain -p #{password.shellescape} #{BUILD_KEYCHAIN.shellescape}")
+      sh("security set-key-partition-list -S apple-tool:,apple:,codesign: -k #{password.shellescape} #{BUILD_KEYCHAIN.shellescape} >/dev/null 2>&1 || true")
+    end
+
+    sh("security list-keychains -d user -s #{BUILD_KEYCHAIN.shellescape} #{ENV["HOME"]}/Library/Keychains/login.keychain-db")
+    sh("security find-identity -v -p codesigning #{BUILD_KEYCHAIN.shellescape} | grep -F #{DIST_CERT.shellescape}")
+  end
+
+  desc "Create the OfficeAdmin Game App Store app and App Store provisioning profile"
+  lane :setup_testflight do
+    api_key = asc_api_key
+    prep_keychain
+
+    # produce (fastlane 2.236) only authenticates via Apple ID (Spaceship.login
+    # / ConnectAPI.login with a web session), which no headless ssh session has.
+    # Register the identifier and create the ASC app record directly through
+    # Spaceship::ConnectAPI with the API key — the same calls produce makes
+    # internally (Produce::ItunesConnect#create_new_app).
+    Spaceship::ConnectAPI.auth(key_id: API_KEY_ID, issuer_id: API_ISSUER_ID, filepath: API_KEY_PATH)
+    platform = Spaceship::ConnectAPI::Platform.map("ios")
+
+    if Spaceship::ConnectAPI::BundleId.find(BUNDLE_ID)
+      UI.success("Bundle identifier #{BUNDLE_ID} already registered")
+    else
+      Spaceship::ConnectAPI::BundleId.create(
+        name: APP_NAME,
+        platform: platform,
+        identifier: BUNDLE_ID
+      )
+      UI.success("Registered bundle identifier #{BUNDLE_ID}")
+    end
+
+    if Spaceship::ConnectAPI::App.find(BUNDLE_ID)
+      UI.success("App '#{APP_NAME}' (#{BUNDLE_ID}) already exists on App Store Connect")
+    else
+      app = Spaceship::ConnectAPI::App.create(
+        name: APP_NAME,
+        version_string: "0.1.0",
+        sku: APP_SKU,
+        primary_locale: "en-US",
+        bundle_id: BUNDLE_ID,
+        platforms: [platform]
+      )
+      UI.success("Created app '#{APP_NAME}' on App Store Connect with ID #{app.id}")
+    end
+
+    sigh(
+      app_identifier: BUNDLE_ID,
+      api_key: api_key,
+      team_id: TEAM_ID,
+      provisioning_name: STORE_PROFILE,
+      ignore_profiles_with_different_name: true,
+      filename: "OfficeAdminGameStore.mobileprovision",
+      output_path: "#{IOSAPP_DIR}/build/signing",
+      skip_install: false
+    )
+  end
+
+  desc "Create the OfficeAdmin Game Ad Hoc provisioning profile (all devices: Mike's iPhone)"
+  lane :adhoc_profile do
+    api_key = asc_api_key
+    prep_keychain
+
+    # Pin the profile to the Apple Distribution cert (the identity the OTA
+    # build signs with, per build-ota.sh's DIST_CERT). sigh's default picked
+    # iPhone Distribution; the signing cert must be IN the profile or iOS
+    # refuses the install.
+    Spaceship::ConnectAPI.auth(key_id: API_KEY_ID, issuer_id: API_ISSUER_ID, filepath: API_KEY_PATH)
+    # ASC "name" for the Apple Distribution cert is "Apple Distribution: Michael
+    # Shaffer" (displayName is just the person). certificate_type is DISTRIBUTION.
+    dist_certs = Spaceship::ConnectAPI::Certificate.all.filter_map do |c|
+      c.id if c.name.to_s.start_with?("Apple Distribution")
+    end
+    UI.user_error!("No Apple Distribution certificate is visible to the API key") if dist_certs.empty?
+    UI.message("Signing profile with Apple Distribution cert #{dist_certs.first}")
+
+    sigh(
+      api_key: api_key,
+      app_identifier: BUNDLE_ID,
+      team_id: TEAM_ID,
+      adhoc: true,
+      cert_id: dist_certs.first,
+      provisioning_name: "OfficeAdmin Game AdHoc",
+      ignore_profiles_with_different_name: true,
+      # force re-adds every registered device on each run, so the profile
+      # always carries Mike's iPhone (same guarantee build-ota.sh relies on).
+      force: true,
+      filename: "OfficeAdminGame-AdHoc.mobileprovision",
+      output_path: "#{IOSAPP_DIR}/build",
+      skip_install: false
+    )
+  end
+
+  desc "Build and upload OfficeAdmin Game to TestFlight"
+  lane :beta do
+    asc_api_key
+    prep_keychain
+
+    build_number = Time.now.strftime("%Y%m%d%H%M")
+    increment_build_number(
+      xcodeproj: PROJECT_PATH,
+      build_number: build_number
+    )
+    UI.important("CURRENT_PROJECT_VERSION = #{build_number}")
+
+    build_app(
+      project: PROJECT_PATH,
+      scheme: "OfficeAdminGame",
+      configuration: "Release",
+      clean: true,
+      skip_package_ipa: true,
+      skip_archive: false,
+      archive_path: ARCHIVE_PATH,
+      xcargs: "OTHER_CODE_SIGN_FLAGS=\"--keychain #{BUILD_KEYCHAIN}\""
+    )
+
+    sh("rm -rf /tmp/oag_pack && mkdir -p /tmp/oag_pack/Payload")
+    sh("ditto \"#{ARCHIVE_PATH}/Products/Applications/OfficeAdminGame.app\" /tmp/oag_pack/Payload/OfficeAdminGame.app")
+    sh("xattr -cr /tmp/oag_pack/Payload/OfficeAdminGame.app")
+    sh("cd /tmp/oag_pack && ditto -c -k --norsrc --noextattr --keepParent Payload \"#{IPA_PATH}\"")
+    UI.success("Packaged IPA at #{IPA_PATH} (build #{build_number})")
+
+    sh("xcrun altool --upload-app --type ios -f #{IPA_PATH.shellescape} --apiKey #{API_KEY_ID} --apiIssuer #{API_ISSUER_ID}")
+    UI.success("Uploaded OfficeAdmin Game build #{build_number} to App Store Connect")
+  end
+end
