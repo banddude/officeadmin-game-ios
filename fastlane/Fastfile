@@ -89,6 +89,27 @@ platform :ios do
     )
   end
 
+  desc "Create the OfficeAdmin Game Ad Hoc provisioning profile (all devices: Mike's iPhone)"
+  lane :adhoc_profile do
+    api_key = asc_api_key
+    prep_keychain
+
+    sigh(
+      api_key: api_key,
+      app_identifier: BUNDLE_ID,
+      team_id: TEAM_ID,
+      adhoc: true,
+      provisioning_name: "OfficeAdmin Game AdHoc",
+      ignore_profiles_with_different_name: true,
+      # force re-adds every registered device on each run, so the profile
+      # always carries Mike's iPhone (same guarantee build-ota.sh relies on).
+      force: true,
+      filename: "OfficeAdminGame-AdHoc.mobileprovision",
+      output_path: "#{IOSAPP_DIR}/build",
+      skip_install: false
+    )
+  end
+
   desc "Build and upload OfficeAdmin Game to TestFlight"
   lane :beta do
     asc_api_key
