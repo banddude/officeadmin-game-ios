@@ -38,15 +38,21 @@ final class GameStore {
 
     func restoreSession() {
         if let credentials = GameCredentials.fromEnvironment() {
-            client = OAClient(credentials: credentials)
-            phase = .loading
-            Task { await loadWorld() }
+            startSession(with: credentials)
             return
         }
-        guard let credentials = KeychainCredentialStore.load() else {
-            phase = .needsSetup
+        if let credentials = KeychainCredentialStore.load() {
+            startSession(with: credentials)
             return
         }
+        if let credentials = GameCredentials.fromBootstrapBundle() {
+            startSession(with: credentials)
+            return
+        }
+        phase = .needsSetup
+    }
+
+    private func startSession(with credentials: GameCredentials) {
         client = OAClient(credentials: credentials)
         phase = .loading
         Task { await loadWorld() }
