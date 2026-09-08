@@ -9,7 +9,7 @@
 #
 # It ALWAYS, IN ORDER:
 #   1. keychain prep (aiva-build keychain)
-#   2. clean unsigned Release build (generic iOS device)
+#   2. generate ignored bootstrap credentials + clean unsigned Release build
 #   3. stage the .app + embed the Ad Hoc provisioning profile
 #   4. sign with the distribution cert carried by the profile (derived, not
 #      hardcoded), minimal ad-hoc entitlements, --generate-entitlement-der
@@ -30,6 +30,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # repo root
 PROJ="$HERE/OfficeAdminGame.xcodeproj"
 SCHEME="OfficeAdminGame"
 BUILD="$HERE/build"
+BOOTSTRAP_PLIST="$HERE/Config/BootstrapCredentials.plist"
 
 # ---------------------------------------------------------------- signing / publish config
 TEAM_ID="${TEAM_ID:-6D4T7VB2AF}"
@@ -77,8 +78,9 @@ security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$BUILD_KC_PW
 restore_kc() { security default-keychain -d user -s "$HOME/Library/Keychains/login.keychain-db"; }
 trap restore_kc EXIT
 
-# ============================================================ 2. clean unsigned Release build
-say "[2] clean unsigned Release build (build $BUILD_NUMBER)"
+# ============================================================ 2. bootstrap + clean unsigned Release build
+say "[2] bootstrap credentials + clean unsigned Release build (build $BUILD_NUMBER)"
+bash "$HERE/tools/generate-bootstrap-credentials.sh" "$BOOTSTRAP_PLIST"
 rm -rf "$DD"
 xcodebuild -project "$PROJ" -scheme "$SCHEME" -configuration Release \
   -destination "generic/platform=iOS" -derivedDataPath "$DD" \
@@ -87,6 +89,8 @@ xcodebuild -project "$PROJ" -scheme "$SCHEME" -configuration Release \
   build 2>&1 | tail -5
 APPSRC="$DD/Build/Products/Release-iphoneos/OfficeAdminGame.app"
 [ -d "$APPSRC" ] || die "unsigned build produced no OfficeAdminGame.app"
+cp "$BOOTSTRAP_PLIST" "$APPSRC/BootstrapCredentials.plist"
+chmod 0644 "$APPSRC/BootstrapCredentials.plist"
 
 # ============================================================ 3. stage app + embed ad-hoc profile
 say "[3] stage app + embed ad-hoc profile"
