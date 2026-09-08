@@ -115,6 +115,13 @@ struct WorldBoard {
 
         let originMeters = WorldBoard.mercatorMeters(origin)
 
+        // The region sites may occupy: padded, and clear of the ocean.
+        let regionMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
+                              -WorldBoard.size.y / 2 + WorldBoard.padding)
+        let regionMax = SIMD2(WorldBoard.size.x / 2 - WorldBoard.padding,
+                              WorldBoard.size.y / 2 - WorldBoard.padding)
+        let regionCenter = (regionMin + regionMax) / 2
+
         // Project every site to meters around the origin, then fit the whole
         // cloud into the padded board (east of the scenery band) with a
         // single uniform scale.
@@ -129,15 +136,9 @@ struct WorldBoard {
                 lo = simd_min(lo, SIMD2<Float>(item.m))
                 hi = simd_max(hi, SIMD2<Float>(item.m))
             }
-            // The region sites may occupy: padded, and clear of the ocean.
-            let regionMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
-                                  -WorldBoard.size.y / 2 + WorldBoard.padding)
-            let regionMax = SIMD2(WorldBoard.size.x / 2 - WorldBoard.padding,
-                                  WorldBoard.size.y / 2 - WorldBoard.padding)
             // usable = region minus the fit margin ON EACH SIDE, so a cloud
             // that fills `usable` leaves room for its buildings' halves.
             let usable = regionMax - regionMin - SIMD2(WorldBoard.fitMargin * 2, WorldBoard.fitMargin * 2)
-            let regionCenter = (regionMin + regionMax) / 2
             let span = hi - lo
             // Scale to fit (a degenerate cluster keeps a sane human scale).
             if span.x > 0.001 || span.y > 0.001 {
@@ -164,16 +165,32 @@ struct WorldBoard {
             min: -WorldBoard.size / 2 + SIMD2(2.4, 2.4),
             max: WorldBoard.size / 2 - SIMD2(2.4, 2.4))
 
-        // Footprints from board positions, then push everything apart so no
-        // two buildings interpenetrate and none swallows the office.
+        // Footprints from board positions, then spread overlaps OUTWARD ALONG
+        // each site's true bearing so the relative geography the projection
+        // produced survives being made walkable (dense metro clusters bloom
+        // radially instead of being re-packed into a generic village).
+        // When the full address list crowds the board, footprints shrink a
+        // little (the scene builds meshes from footprints, so visuals follow).
+        let buildingScale = WorldBoard.footprintScale(for: geocoded)
         var footprints: [String: BoardRect] = [:]
         for site in geocoded {
             guard let p = positions[site.id] else { continue }
             let size = WorldBoard.buildingSize(category: site.scopeLabel,
-                                               phase: site.phase)
+                                               phase: site.phase) * buildingScale
             footprints[site.id] = BoardRect.size(size.x, size.y, at: p)
         }
-        WorldBoard.separate(&footprints, from: officeFootprint)
+        // Bearings radiate from the cloud's MEDIAN anchor, not its bounding
+        // box center: one far outlier (a Bay Area job) drags the box center
+        // most of the way out of town, which would seat the whole LA basin in
+        // a single south-east lane. The median stays inside the dense cluster
+        // where the work is, so metro sites fan out in every direction and
+        // far cities sit at their true bearings FROM the metro — how a CA map
+        // is actually read.
+        let medianAnchor = WorldBoard.medianAnchor(of: positions)
+        WorldBoard.spreadAlongBearings(&footprints,
+                                       anchors: positions,
+                                       around: medianAnchor,
+                                       office: officeFootprint)
 
         // Positions follow their (possibly nudged) footprints.
         for (id, rect) in footprints { positions[id] = rect.center }
@@ -196,6 +213,41 @@ struct WorldBoard {
     }
 
     // MARK: Building size by what the project is
+
+    /// The robust center of the site cloud: median x, median y of the true
+    /// anchors. Unlike a bounding box (or mean), one far-flung job cannot
+    /// drag it out of the metro the work concentrates in.
+    static func medianAnchor(of positions: [String: SIMD2<Float>]) -> SIMD2<Float> {
+        guard !positions.isEmpty else { return .zero }
+        let xs = positions.values.map(\.x).sorted()
+        let ys = positions.values.map(\.y).sorted()
+        let mid = xs.count / 2
+        let medianX = xs.count % 2 == 1 ? xs[mid] : (xs[mid - 1] + xs[mid]) / 2
+        let medianY = ys.count % 2 == 1 ? ys[mid] : (ys[mid - 1] + ys[mid]) / 2
+        return SIMD2(medianX, medianY)
+    }
+
+    /// How much footprints shrink when the board is too crowded for every
+    /// building at full size. A dozen sites keep full size; the full real
+    /// list (~42 addressed jobs) shrinks ~10-15% — perceptible only side by
+    /// side, and the whole board stays walkable instead of clogged.
+    static func footprintScale(for sites: [WorldSite]) -> Float {
+        guard sites.count > 4 else { return 1 }
+        let layoutMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
+                              -WorldBoard.size.y / 2 + 3.0)
+        let layoutMax = WorldBoard.size / 2 - SIMD2(Float(3.0), Float(3.0))
+        let usable = (layoutMax.x - layoutMin.x) * (layoutMax.y - layoutMin.y)
+        let officeArea: Float = 9.0 * 7.0 * 1.6
+        // Radial packing fills roughly two thirds of the circle area it needs.
+        let available = max((usable - officeArea) * 0.65, 1)
+        var needed: Float = 0
+        for site in sites {
+            let size = WorldBoard.buildingSize(category: site.scopeLabel, phase: site.phase)
+            let radius = simd_length(size) / 2 + WorldBoard.buildingGap / 2
+            needed += .pi * radius * radius
+        }
+        return needed <= available ? 1 : max(sqrt(available / needed), 0.62)
+    }
 
     /// Footprint of one site's building, from its real category and phase.
     /// The scene builds its mesh from the same numbers, so the geometry a
@@ -232,74 +284,129 @@ struct WorldBoard {
         return CLLocationCoordinate2D(latitude: lat, longitude: lng)
     }
 
-    /// Push building footprints apart (and away from the office) until they
-    /// clear each other by `buildingGap`. Deterministic: pairs are visited
-    /// in id order and nudged along the short axis each time.
-    private static func separate(_ rects: inout [String: BoardRect], from office: BoardRect) {
-        let ids = rects.keys.sorted()
+    /// Resolve building overlaps WITHOUT re-shuffling the map, preserving the
+    /// relative geography the projection produced. A site whose true anchor
+    /// is genuinely clear KEEPS IT EXACTLY (a sparse world keeps perfect
+    /// proportions). Otherwise the site takes the free cell of a fixed
+    /// rectangular lattice nearest its true anchor — the lattice is a
+    /// well-spread candidate generator, and every seat (exact or cell) is
+    /// overlap-checked against the office lot, the layout and every building
+    /// already placed, so neighbors can never interpenetrate (no re-packing
+    /// pass to bend geography). Sites seat farthest-from-median first, so
+    /// far-flung jobs land on their true spots and a dense metro cluster
+    /// fills in around where the metro actually is. The honesty traded away
+    /// is cell granularity inside the crushed metro (adjacent cells in
+    /// deterministic order — the cluster's shape tracks truth, exact
+    /// centimeter offsets do not).
+    private static func spreadAlongBearings(_ rects: inout [String: BoardRect],
+                                            anchors: [String: SIMD2<Float>],
+                                            around center: SIMD2<Float>,
+                                            office: BoardRect) {
         let layoutMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
                               -WorldBoard.size.y / 2 + 3.0)
         let layoutMax = WorldBoard.size / 2 - SIMD2(Float(3.0), Float(3.0))
-        for _ in 0..<14 {
-            var movedAnything = false
-            for i in ids.indices {
-                for j in i + 1..<ids.count {
-                    guard let a = rects[ids[i]], let b = rects[ids[j]] else { continue }
-                    if !a.overlaps(b, gap: WorldBoard.buildingGap) { continue }
-                    var separation = WorldBoard.separationVector(a: a, b: b,
-                                                                  gap: WorldBoard.buildingGap)
-                    if separation == .zero {
-                        // Perfectly stacked sites: part them deterministically.
-                        separation = SIMD2(a.halfExtents.x + b.halfExtents.x + WorldBoard.buildingGap, 0)
-                    }
-                    rects[ids[i]]?.center -= separation / 2
-                    rects[ids[j]]?.center += separation / 2
-                    movedAnything = true
-                }
-            }
-            // Keep the office corner sacred: shove sites out of its lot. Each
-            // escape axis flips when it would shove the site off the board —
-            // on a narrow board there isn't always room on the obvious side.
-            for id in ids {
-                guard var rect = rects[id], rect.overlaps(office, gap: WorldBoard.buildingGap) else { continue }
-                var separation = WorldBoard.separationVector(a: rect, b: office,
-                                                              gap: WorldBoard.buildingGap)
-                if separation == .zero {
-                    separation = SIMD2(-(rect.halfExtents.x + office.halfExtents.x + WorldBoard.buildingGap), 0)
-                }
-                if rect.center.x + separation.x + rect.halfExtents.x > layoutMax.x ||
-                    rect.center.x + separation.x - rect.halfExtents.x < layoutMin.x {
-                    separation.x = -separation.x
-                }
-                if rect.center.y + separation.y + rect.halfExtents.y > layoutMax.y ||
-                    rect.center.y + separation.y - rect.halfExtents.y < layoutMin.y {
-                    separation.y = -separation.y
-                }
-                rect.center += separation
-                rects[id] = rect
-                movedAnything = true
-            }
-            // And on the board itself.
-            for id in ids {
-                guard var rect = rects[id] else { continue }
-                let clamped = BoardRect(
-                    min: simd_max(SIMD2(rect.minX, rect.minY), layoutMin),
-                    max: simd_min(SIMD2(rect.maxX, rect.maxY), layoutMax))
-                if clamped.center != rect.center { movedAnything = true }
-                rect.center = clamped.center
-                rects[id] = rect
-            }
-            if !movedAnything { break }
-        }
-    }
 
-    /// How much to move `b` along each axis so it clears `a` (positive values).
-    private static func separationVector(a: BoardRect, b: BoardRect, gap: Float) -> SIMD2<Float> {
-        let dx = a.halfExtents.x + b.halfExtents.x + gap - abs(b.center.x - a.center.x)
-        let dy = a.halfExtents.y + b.halfExtents.y + gap - abs(b.center.y - a.center.y)
-        let signX: Float = b.center.x >= a.center.x ? 1 : -1
-        let signY: Float = b.center.y >= a.center.y ? 1 : -1
-        return SIMD2(max(dx, 0) * signX, max(dy, 0) * signY)
+        // Cell size clears the LARGEST footprint (all cells equivalent),
+        // plus the building gap on both sides.
+        let widest = rects.values.reduce(Float(0)) { max($0, $1.halfExtents.x * 2) }
+        let maxDepth = rects.values.reduce(Float(0)) { max($0, $1.halfExtents.y * 2) }
+
+        // Every seat — exact or cell — must clear the office lot, the layout,
+        // and every building already placed. That check IS the non-overlap
+        // guarantee; the lattice below only generates tidy candidates.
+        var placed: [(center: SIMD2<Float>, half: SIMD2<Float>)] = [
+            (office.center, office.halfExtents)
+        ]
+        func fits(_ c: SIMD2<Float>, _ rect: BoardRect) -> Bool {
+            let half = rect.halfExtents
+            let inLayout = c.x - half.x >= layoutMin.x && c.x + half.x <= layoutMax.x &&
+                c.y - half.y >= layoutMin.y && c.y + half.y <= layoutMax.y
+            guard inLayout else { return false }
+            let clear = placed.allSatisfy {
+                !(abs(c.x - $0.center.x) < half.x + $0.half.x + WorldBoard.buildingGap &&
+                  abs(c.y - $0.center.y) < half.y + $0.half.y + WorldBoard.buildingGap)
+            }
+            return clear
+        }
+        func seat(_ id: String, _ rect: BoardRect, at c: SIMD2<Float>) {
+            rects[id]?.center = c
+            placed.append((c, rect.halfExtents))
+        }
+
+        // A rectangular lattice sized to the largest footprint (plus the gap
+        // on both sides): tidy, well-spread candidate positions for sites
+        // whose true anchors are taken.
+        let cellWidth = widest + WorldBoard.buildingGap * 2
+        let cellDepth = maxDepth + WorldBoard.buildingGap * 2
+        func cellCenter(_ i: Int, _ j: Int) -> SIMD2<Float> {
+            SIMD2(cellWidth * Float(i), cellDepth * Float(j))
+        }
+        func nearestCell(to p: SIMD2<Float>) -> (i: Int, j: Int) {
+            (Int((p.x / cellWidth).rounded()), Int((p.y / cellDepth).rounded()))
+        }
+        var taken = Set<String>()
+
+        // Deterministic order: farthest true anchor from the median first —
+        // outer truth anchors the board exactly, the metro fills in last.
+        let order = rects.keys.sorted {
+            let da = simd_distance(anchors[$0] ?? center, center)
+            let db = simd_distance(anchors[$1] ?? center, center)
+            return da != db ? da > db : $0 < $1
+        }
+
+        for id in order {
+            guard let rect = rects[id] else { continue }
+            let anchor = anchors[id] ?? center
+
+            // The true anchor, exactly, whenever it is genuinely clear.
+            if fits(anchor, rect) {
+                seat(id, rect, at: anchor)
+                continue
+            }
+
+            // Otherwise the free lattice cell nearest the truth. Ring 0 is
+            // the home cell; each Chebyshev ring after wraps it. Candidates
+            // are tried nearest-to-truth first (distance, then angle, then
+            // cell coords — all deterministic).
+            let home = nearestCell(to: anchor)
+            var seatedHere = false
+            search: for ring in 0...12 {
+                var ringCells: [(i: Int, j: Int)] = []
+                if ring == 0 {
+                    ringCells.append(home)
+                } else {
+                    for di in -ring...ring {
+                        for dj in -ring...ring where max(abs(di), abs(dj)) == ring {
+                            ringCells.append((home.i + di, home.j + dj))
+                        }
+                    }
+                }
+                let candidates = ringCells
+                    .filter { !taken.contains("\($0.i),\($0.j)") }
+                    .map { cell -> (cell: (i: Int, j: Int), c: SIMD2<Float>, d: Float, a: Float) in
+                        let c = cellCenter(cell.i, cell.j)
+                        let delta = c - anchor
+                        return (cell, c, simd_length(delta), atan2(delta.y, delta.x))
+                    }
+                    .filter { fits($0.c, rect) }
+                    .sorted { ($0.d, $0.a, $0.cell.i, $0.cell.j) < ($1.d, $1.a, $1.cell.i, $1.cell.j) }
+                if let best = candidates.first {
+                    taken.insert("\(best.cell.i),\(best.cell.j)")
+                    seat(id, rect, at: best.c)
+                    seatedHere = true
+                    break search
+                }
+            }
+
+            // A board with no cell left (far more sites than today): clamp
+            // the true point and let the geometry be as honest as it can.
+            if !seatedHere {
+                let c = SIMD2(
+                    min(max(anchor.x, layoutMin.x + rect.halfExtents.x), layoutMax.x - rect.halfExtents.x),
+                    min(max(anchor.y, layoutMin.y + rect.halfExtents.y), layoutMax.y - rect.halfExtents.y))
+                seat(id, rect, at: c)
+            }
+        }
     }
 }
 

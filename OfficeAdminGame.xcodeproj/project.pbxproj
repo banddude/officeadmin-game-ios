@@ -13,6 +13,7 @@
 		A499682E1D839B8D40C1AAD2 /* App/RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4CCFBDE1F69B12F9796726 /* App/RootView.swift */; };
 		05C3A83394FB6D0A32C1D2EF /* Assets/WorldArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = D26BE4C45055820CA368265F /* Assets/WorldArt.swift */; };
 		4B8E2F7A9C1D5E3F8A2B6C4D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7C1A6EEB0D3F4B2A9C8D5E01 /* Assets.xcassets */; };
+		3A7E2D94C1F8B5A6E0D73F42 /* GeocodeSeed.json in Resources */ = {isa = PBXBuildFile; fileRef = 9F3B8C1D5E7A2F40B6D83C15 /* GeocodeSeed.json */; };
 		25348607EA51E78D2547E08D /* Core/API/OAClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9CA3E265EFAC1E6BE770FD5 /* Core/API/OAClient.swift */; };
 		0F803CBA8A24D5805CCD108B /* Core/API/OAWireModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A650BBED79A410D4E8DBCF4 /* Core/API/OAWireModels.swift */; };
 		AE5B59AB5AA0A0B2DD16535C /* Core/Auth/GameCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = B48FCF0B2B9328A39DB74357 /* Core/Auth/GameCredentials.swift */; };
@@ -55,6 +56,7 @@
 		4D4CCFBDE1F69B12F9796726 /* App/RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		D26BE4C45055820CA368265F /* Assets/WorldArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldArt.swift; sourceTree = "<group>"; };
 		7C1A6EEB0D3F4B2A9C8D5E01 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		9F3B8C1D5E7A2F40B6D83C15 /* GeocodeSeed.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = GeocodeSeed.json; path = Core/World/GeocodeSeed.json; sourceTree = "<group>"; };
 		A9CA3E265EFAC1E6BE770FD5 /* Core/API/OAClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAClient.swift; sourceTree = "<group>"; };
 		3A650BBED79A410D4E8DBCF4 /* Core/API/OAWireModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAWireModels.swift; sourceTree = "<group>"; };
 		B48FCF0B2B9328A39DB74357 /* Core/Auth/GameCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCredentials.swift; sourceTree = "<group>"; };
@@ -240,6 +242,7 @@
 				19AD5E543C0220E084901073 /* App */,
 				6747E4D880FD03B165CCFFDA /* Assets */,
 				7C1A6EEB0D3F4B2A9C8D5E01 /* Assets.xcassets */,
+				9F3B8C1D5E7A2F40B6D83C15 /* GeocodeSeed.json */,
 				C57C7B36F2883B1C0B078B53 /* Core */,
 				00991AFEAAD5DEA38E69DE70 /* OfficeAdminGameTests */,
 				6120AD3F6DC20B053FDCDB49 /* Scenes */,
@@ -315,6 +318,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4B8E2F7A9C1D5E3F8A2B6C4D /* Assets.xcassets in Resources */,
+				3A7E2D94C1F8B5A6E0D73F42 /* GeocodeSeed.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

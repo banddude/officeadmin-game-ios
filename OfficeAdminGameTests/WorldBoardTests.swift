@@ -5,6 +5,7 @@
 //  straight against known coordinates and hand-built rects.
 
 import CoreLocation
+import simd
 import XCTest
 @testable import OfficeAdminGame
 
@@ -121,6 +122,149 @@ final class WorldBoardTests: XCTestCase {
         }
         let se = try XCTUnwrap(board.sitePositions["se"])
         XCTAssertGreaterThan(se.x, 0, "the south-east site stays in the eastern half")
+    }
+
+    // MARK: - Geography-preserving spread
+
+    /// REAL project coordinates (from GeocodeSeed.json) spanning the state —
+    /// Bay Area, Central Valley, the LA basin (where most jobs sit) and San
+    /// Diego: after the board makes it walkable, well-separated jobs keep
+    /// their true RELATIVE directions (the Bay stays north-west of San Diego,
+    /// Orange County stays east of the basin), every building stays within a
+    /// walk of its true projected point, and nothing interpenetrates.
+    func testBearingsSurviveSpreading() throws {
+        let sites = [
+            site("novato", lat: 38.1099, lng: -122.5665),     // 819 Olive St
+            site("sanjose", lat: 37.2345, lng: -121.7874),    // 6578 Santa Teresa Blvd
+            site("coalinga", lat: 36.1353, lng: -120.3278),   // 1921 Mercantile Ln
+            site("fowler", lat: 36.6349, lng: -119.6737),     // 658 E Adams Ave
+            site("simi", lat: 34.2709, lng: -118.7705),       // 1492 E Los Angeles Ave
+            site("santaclarita", lat: 34.4390, lng: -118.5719),// 24930 Avenue Stanford
+            site("palisades", lat: 34.0483, lng: -118.5252),  // 1030 Swarthmore Ave
+            site("encino", lat: 34.1574, lng: -118.5040),     // 17010 Rancho St
+            site("pasadena", lat: 34.1616, lng: -118.3036),   // 215 Thompson Ave
+            site("downtown", lat: 34.0935, lng: -118.3241),   // 1232 N El Centro Ave
+            site("downey", lat: 33.9255, lng: -118.1298),     // 12126 Lakewood Blvd
+            site("orange", lat: 33.8134, lng: -117.8664),     // 1577 N Main St
+            site("sandiego", lat: 32.7018, lng: -117.0663),   // 6130 Skyline Drive
+        ]
+        let board = WorldBoard(sites: sites)
+
+        // Mirror the board's own fit math to know each site's TRUE projected
+        // point (the cloud's bounding box seated at the region center).
+        let coords = sites.compactMap(\.coordinate)
+        let lat = coords.map(\.latitude).reduce(0, +) / Double(coords.count)
+        let lng = coords.map(\.longitude).reduce(0, +) / Double(coords.count)
+        let centroid = WorldBoard.mercatorMeters(CLLocationCoordinate2D(latitude: lat, longitude: lng))
+        let regionMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
+                              -WorldBoard.size.y / 2 + WorldBoard.padding)
+        let regionMax = SIMD2(WorldBoard.size.x / 2 - WorldBoard.padding,
+                              WorldBoard.size.y / 2 - WorldBoard.padding)
+        let regionCenter = (regionMin + regionMax) / 2
+        let usable = regionMax - regionMin - SIMD2(WorldBoard.fitMargin * 2, WorldBoard.fitMargin * 2)
+        let meters = sites.map { WorldBoard.mercatorMeters($0.coordinate!) - centroid }
+        var lo = SIMD2<Double>.zero, hi = SIMD2<Double>.zero
+        for m in meters {
+            lo = simd_min(lo, SIMD2<Double>(m)); hi = simd_max(hi, SIMD2<Double>(m))
+        }
+        let span = hi - lo
+        let scale = min(usable.x / Float(max(span.x, 0.001)),
+                        usable.y / Float(max(span.y, 0.001)), 12)
+        let cloudCenter = (lo + hi) / 2
+        let anchors = Dictionary(uniqueKeysWithValues: meters.enumerated().map { i, m in
+            (sites[i].id, regionCenter + SIMD2<Float>(m - cloudCenter) * scale * SIMD2<Float>(1, -1))
+        })
+
+        // Every building stays within a walk of its true point, on the board.
+        let layoutMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
+                              -WorldBoard.size.y / 2 + 3.0)
+        let layoutMax = WorldBoard.size / 2 - SIMD2(Float(3.0), Float(3.0))
+        for s in sites {
+            let p = try XCTUnwrap(board.sitePositions[s.id], "\(s.id) placed")
+            let anchor = try XCTUnwrap(anchors[s.id])
+            XCTAssertLessThan(simd_distance(p, anchor), 22,
+                              "\(s.id) stays near its true point")
+            XCTAssertGreaterThan(p.x, layoutMin.x - 0.5, "\(s.id) in layout")
+            XCTAssertLessThan(p.x, layoutMax.x + 0.5, "\(s.id) in layout")
+            XCTAssertGreaterThan(p.y, layoutMin.y - 0.5, "\(s.id) in layout")
+            XCTAssertLessThan(p.y, layoutMax.y + 0.5, "\(s.id) in layout")
+        }
+
+        // State-scale geography: pairs well-separated in truth keep their
+        // true relative direction on the board (this is the property that
+        // makes the world read "accurate to where each job is in CA").
+        var maxTrueSeparation: Float = 0
+        for i in sites.indices {
+            for j in i + 1..<sites.count {
+                maxTrueSeparation = max(maxTrueSeparation,
+                                        simd_distance(anchors[sites[i].id]!, anchors[sites[j].id]!))
+            }
+        }
+        for i in sites.indices {
+            for j in i + 1..<sites.count {
+                let a = anchors[sites[i].id]!, b = anchors[sites[j].id]!
+                guard simd_distance(a, b) >= maxTrueSeparation * 0.65 else { continue }
+                let pa = try XCTUnwrap(board.sitePositions[sites[i].id])
+                let pb = try XCTUnwrap(board.sitePositions[sites[j].id])
+                let trueBearing = atan2(b.y - a.y, b.x - a.x)
+                let boardBearing = atan2(pb.y - pa.y, pb.x - pa.x)
+                var delta = abs(boardBearing - trueBearing)
+                if delta > .pi { delta = 2 * .pi - delta }
+                XCTAssertLessThan(delta, 0.8,
+                                  "\(sites[i].id)→\(sites[j].id) keeps its true direction (delta \(delta * 180 / .pi)°)")
+            }
+        }
+
+        // And no two buildings interpenetrate anywhere.
+        let rects = board.buildingFootprints.values.map { $0 }
+        for i in rects.indices {
+            for j in i + 1..<rects.count {
+                XCTAssertFalse(rects[i].overlaps(rects[j]),
+                               "buildings \(i)/\(j) clear each other")
+            }
+        }
+    }
+
+    /// A dense metro cluster blooms OUTWARD from its true spot: every
+    /// building keeps (roughly) its own bearing from the center, nothing is
+    /// re-packed into a village grid, and duplicate addresses still split.
+    func testClusterBloomsAlongTrueBearings() throws {
+        // Ten jobs inside a couple of kilometers of DTLA, plus a San Diego
+        // outlier so the fit doesn't blow the cluster up to board size.
+        var sites = (0..<10).map { i in
+            site("la\(i)", lat: 34.05 + Double(i) * 0.002, lng: -118.25 + Double(i % 3) * 0.002)
+        }
+        sites.append(site("sd", lat: 32.70, lng: -117.07))
+        let board = WorldBoard(sites: sites)
+
+        XCTAssertEqual(board.buildingFootprints.count, 11, "all placed")
+        let rects = board.buildingFootprints.values.map { $0 }
+        for i in rects.indices {
+            for j in i + 1..<rects.count {
+                XCTAssertFalse(rects[i].overlaps(rects[j]), "cluster buildings stay clear")
+            }
+        }
+        // The bloom keeps the cluster LOCAL: every LA building stays north of
+        // the San Diego one (board y is south).
+        let sdY = try XCTUnwrap(board.sitePositions["sd"]).y
+        for i in 0..<10 {
+            let y = try XCTUnwrap(board.sitePositions["la\(i)"]).y
+            XCTAssertLessThan(y, sdY, "la\(i) stays north of San Diego")
+        }
+    }
+
+    /// Same world in any order → identical board: the layout is a function of
+    /// geography, not of the API's reply order.
+    func testLayoutIsDeterministicUnderShuffledInput() {
+        let sites = [
+            site("a", lat: 38.11, lng: -122.57), site("b", lat: 34.05, lng: -118.25),
+            site("c", lat: 32.70, lng: -117.07), site("d", lat: 36.14, lng: -120.33),
+            site("e", lat: 34.27, lng: -118.77), site("f", lat: 33.81, lng: -117.87),
+        ]
+        let one = WorldBoard(sites: sites)
+        let two = WorldBoard(sites: sites.reversed())
+        XCTAssertEqual(one.sitePositions, two.sitePositions,
+                       "site order does not change the board")
     }
 
     func testBuildingSizeFollowsCategoryAndPhase() {
