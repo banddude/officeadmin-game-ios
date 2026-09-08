@@ -69,7 +69,7 @@ struct BoardRect: Equatable {
 
 /// One laid-out world: every geocoded site at a board position, its building
 /// footprint, and the office in its corner. Built from `WorldSite`s only.
-struct WorldBoard: Equatable {
+struct WorldBoard {
     /// The full ground board (x east-west, y north-south), centered at 0.
     static let size = SIMD2<Float>(72, 48)
     /// Sites are laid out inside the board inset by this much.
@@ -171,7 +171,7 @@ struct WorldBoard: Equatable {
         buildingFootprints = footprints
     }
 
-    convenience init() {
+    init() {
         self.init(sites: [])
     }
 
