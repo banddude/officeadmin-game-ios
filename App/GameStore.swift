@@ -182,8 +182,8 @@ final class GameStore {
     /// manual refresh. The geocoder's own attempt cap bounds total retries.
     private func scheduleGeocodeRetry() {
         let pending = world.sites.filter { $0.coordinate == nil && $0.pendingGeocodeAddress != nil }
-        guard !pending.isEmpty, !geocodeRetryScheduled else { return }
-        geocodeRetryScheduled = true
+        guard !pending.isEmpty, !worldHealScheduled else { return }
+        worldHealScheduled = true
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(12))
             guard let self, self.phase == .ready else { return }
@@ -201,7 +201,7 @@ final class GameStore {
                 self.world = updated
                 Self.log.info("geocode retry pass placed more sites")
             }
-            self.geocodeRetryScheduled = false
+            self.worldHealScheduled = false
         }
     }
 
