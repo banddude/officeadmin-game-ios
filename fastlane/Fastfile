@@ -94,11 +94,23 @@ platform :ios do
     api_key = asc_api_key
     prep_keychain
 
+    # Pin the profile to the Apple Distribution cert (the identity the OTA
+    # build signs with, per build-ota.sh's DIST_CERT). sigh's default picked
+    # iPhone Distribution; the signing cert must be IN the profile or iOS
+    # refuses the install.
+    Spaceship::ConnectAPI.auth(key_id: API_KEY_ID, issuer_id: API_ISSUER_ID, filepath: API_KEY_PATH)
+    dist_certs = Spaceship::ConnectAPI::Certificate.all.filter_map do |c|
+      c.id if c.display_name == DIST_CERT
+    end
+    UI.user_error!("No cert named '#{DIST_CERT}' is visible to the API key") if dist_certs.empty?
+    UI.message("Signing profile with Apple Distribution cert #{dist_certs.first} (#{DIST_CERT})")
+
     sigh(
       api_key: api_key,
       app_identifier: BUNDLE_ID,
       team_id: TEAM_ID,
       adhoc: true,
+      certificate_id: dist_certs.first,
       provisioning_name: "OfficeAdmin Game AdHoc",
       ignore_profiles_with_different_name: true,
       # force re-adds every registered device on each run, so the profile
