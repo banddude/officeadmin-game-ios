@@ -37,14 +37,17 @@ struct WorldSceneView: View {
                 },
                 artProvider: artProvider)
                 .ignoresSafeArea()
+                .zIndex(0)
 
             chrome
+                .zIndex(20)
 
             if let site = nearSite, pickup == nil {
                 SiteCardView(site: site) {
                     withAnimation(.snappy(duration: 0.25)) { nearSiteID = nil }
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+                .zIndex(30)
             }
         }
         .overlay(alignment: .bottom) {
@@ -70,6 +73,16 @@ struct WorldSceneView: View {
 
     private var chrome: some View {
         ZStack(alignment: .topLeading) {
+            topHUD
+            bottomControls
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 12)
+        .padding(.bottom, 20)
+    }
+
+    private var topHUD: some View {
+        VStack(alignment: .trailing, spacing: 10) {
             HStack(alignment: .top, spacing: 10) {
                 Button {
                     Task { await store.loadWorld() }
@@ -94,38 +107,34 @@ struct WorldSceneView: View {
                 .padding(.vertical, 10)
                 .background(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Theme.paper.opacity(0.94))
+                        .fill(Theme.paper)
                         .shadow(color: .black.opacity(0.12), radius: 9, y: 3)
                 )
-            }
 
-            VStack(spacing: 10) {
-                WorldAttentionCard(
-                    kind: .approval,
-                    title: "Approval needed",
-                    detail: approvalDetail,
-                    count: store.world.mail.count,
-                    artProvider: artProvider)
-                WorldAttentionCard(
-                    kind: .invoicePayment,
-                    title: "Invoice due",
-                    detail: invoiceDueDetail,
-                    count: store.world.whiteboard.count,
-                    artProvider: artProvider)
-                WorldAttentionCard(
-                    kind: .inspection,
-                    title: "Inspection today",
-                    detail: "Feed not connected",
-                    count: nil,
-                    artProvider: artProvider)
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, alignment: .topTrailing)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            bottomControls
+            WorldAttentionCard(
+                kind: .approval,
+                title: "Approval needed",
+                detail: approvalDetail,
+                count: store.world.mail.count,
+                artProvider: artProvider)
+            WorldAttentionCard(
+                kind: .invoicePayment,
+                title: "Invoice due",
+                detail: invoiceDueDetail,
+                count: store.world.whiteboard.count,
+                artProvider: artProvider)
+            WorldAttentionCard(
+                kind: .inspection,
+                title: "Inspection today",
+                detail: "Feed not connected",
+                count: nil,
+                artProvider: artProvider)
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 12)
-        .padding(.bottom, 20)
+        .frame(maxWidth: .infinity, alignment: .topTrailing)
     }
 
     /// The thumbstick plus a fading first-time hint.
@@ -149,7 +158,7 @@ struct WorldSceneView: View {
                     .padding(.vertical, 10)
                     .background(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Theme.parchment.opacity(0.95))
+                            .fill(Theme.parchment)
                             .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
                     )
                     .padding(.trailing, 4)
@@ -271,7 +280,7 @@ private struct WorldAttentionCard: View {
         .frame(width: 250, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Theme.paper.opacity(0.95))
+                .fill(Theme.paper)
                 .shadow(color: .black.opacity(0.13), radius: 9, y: 3)
         )
         .overlay(
