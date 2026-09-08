@@ -122,11 +122,11 @@ enum WorldPropFactory {
 
     /// Centered text mesh (extruded, unlit so labels stay readable).
     static func text(_ string: String, height: Float, color: UIColor,
-                     weight: UIFont.Weight = .bold) -> Entity {
+                     weight: UIFont.Weight = .bold, extrusion: Float = 0.02) -> Entity {
         let entity = Entity()
         let mesh = MeshResource.generateText(
             string,
-            extrusionDepth: 0.02,
+            extrusionDepth: extrusion,
             font: .systemFont(ofSize: CGFloat(height), weight: weight),
             containerFrame: .zero,
             alignment: .center,
@@ -212,20 +212,29 @@ enum WorldPropFactory {
         pier.position = SIMD3(-5.5, 0, boardSize.y / 2 - 1.4)
         root.addChild(pier)
 
-        // Hills cap the north horizon, and the city signs its own hillside.
-        for (hx, hr) in [(-16.0, 8.0), (-6.0, 10.0), (3.0, 9.0), (11.0, 8.0), (18.0, 7.0)] {
+        // Hills cap the north horizon like the mockup: low over the western
+        // sea so nothing pokes up past the HUD cards, cresting toward the
+        // sign hill in the middle of the ridge.
+        let hillSpecs: [(x: Float, radius: Float, lift: Float)] =
+            [(-19, 6.0, 0.30), (-10, 8.0, 0.34), (0, 10.0, 0.40),
+             (10, 9.0, 0.38), (19, 7.5, 0.33)]
+        for spec in hillSpecs {
             let hill = Entity()
             hill.components.set(ModelComponent(
-                mesh: .generateSphere(radius: Float(hr)),
+                mesh: .generateSphere(radius: spec.radius),
                 materials: [SimpleMaterial(color: WorldPalette.blend(WorldPalette.park, toward: .white, fraction: 0.18),
                                            isMetallic: false)]))
-            hill.scale = SIMD3(1, 0.42, 0.72)
-            hill.position = SIMD3(Float(hx), -0.6, -boardSize.y / 2 - Float(hr) * 0.5)
+            hill.scale = SIMD3(1, spec.lift, 0.72)
+            hill.position = SIMD3(spec.x, -0.6, -boardSize.y / 2 - spec.radius * 0.5)
             root.addChild(hill)
         }
-        let sign = text("LOS ANGELES", height: 1.8,
-                        color: WorldPalette.blend(WorldPalette.stucco, toward: .white, fraction: 0.35))
-        sign.position += SIMD3(3, 2.6, -boardSize.y / 2 - 3.6)
+        // "LOS ANGELES" across the face of the center hill: chunky white
+        // letters standing a step proud of the upper slope — the old sign
+        // sat inside the hill mesh and never showed.
+        let sign = text("LOS ANGELES", height: 1.9,
+                        color: WorldPalette.blend(WorldPalette.stucco, toward: .white, fraction: 0.35),
+                        extrusion: 0.3)
+        sign.position += SIMD3(0, 2.2, -boardSize.y / 2 + 0.55)
         root.addChild(sign)
 
         // One boulevard cutting the grid at an angle, laid just under the
