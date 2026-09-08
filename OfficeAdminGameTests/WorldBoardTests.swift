@@ -177,9 +177,11 @@ final class WorldBoardTests: XCTestCase {
         // the true one (a full bearing may slide a site outward along itself,
         // so allow a rim's worth of bend).
         let far = ["novato", "sanjose", "coalinga", "fowler", "simi", "sandiego"]
-        for s in sites where far.contains(s.id) {
+        for (i, s) in sites.enumerated() where far.contains(s.id) {
             let p = try XCTUnwrap(board.sitePositions[s.id], "\(s.id) placed")
-            let m = WorldBoard.mercatorMeters(s.coordinate!)
+            // meters[i] is the Mercator OFFSET from the cloud's origin — the
+            // quantity the bearing must be measured against.
+            let m = meters[i]
             let trueBearing = Float(atan2(-(m.y - cloudCenter.y), m.x - cloudCenter.x))
             let boardBearing = atan2(p.y - regionCenter.y, p.x - regionCenter.x)
             var delta = abs(boardBearing - trueBearing)
