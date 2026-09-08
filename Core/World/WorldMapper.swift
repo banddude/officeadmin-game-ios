@@ -22,6 +22,9 @@ struct WorldInputs {
     var invoices: [OAInvoice] = []
     var invoiceSummary: OAInvoiceSummary?
     var playerProfileName: String?
+    /// Host of the connected server (e.g. "officeadmin.io") — lets the crew
+    /// map recognize the server's own automation accounts.
+    var serverHost: String? = nil
     var now: Date = Date()
 }
 
@@ -127,6 +130,21 @@ enum WorldMapper {
             }
             return best
         }()
+        // Where they already were today: a shift that has ended still says
+        // which job had them, so tonight's board shows today's work standing
+        // at the site it happened on.
+        let earlierByUser: [String: OAScheduledShift] = {
+            var best: [String: OAScheduledShift] = [:]
+            for shift in todaysShifts(inputs) {
+                guard let user = shift.employeeUserId,
+                      shift.status != "cancelled", shift.status != "no_show",
+                      shift.scheduledEnd <= inputs.now else { continue }
+                if best[user] == nil || best[user]!.scheduledStart > shift.scheduledStart {
+                    best[user] = shift
+                }
+            }
+            return best
+        }()
 
         let siteNames = Dictionary(uniqueKeysWithValues:
             inputs.projectDetails.map { ($0.id, $0.name) })
@@ -144,6 +162,10 @@ enum WorldMapper {
                       let siteID = upcoming.projectId {
                 assignment = .onRoad(toSiteID: siteID,
                                      siteName: upcoming.projectName ?? siteNames[siteID] ?? "a job")
+            } else if let earlier = earlierByUser[employee.userId],
+                      let siteID = earlier.projectId {
+                assignment = .atSite(siteID: siteID,
+                                     siteName: earlier.projectName ?? siteNames[siteID] ?? "a job")
             } else {
                 assignment = .office
             }
@@ -151,9 +173,13 @@ enum WorldMapper {
             return WorldCrewMember(id: employee.userId,
                                    name: employee.name,
                                    role: employee.role,
+                                   email: employee.email,
                                    assignment: assignment,
                                    isPlayer: isPlayer,
-                                   isClockedIn: isClockedIn)
+                                   isClockedIn: isClockedIn,
+                                   isServiceAccount: WorldCrewMember.serviceAccount(
+                                       email: employee.email,
+                                       serverHost: inputs.serverHost))
         }
         .sorted { a, b in
             if a.isPlayer != b.isPlayer { return a.isPlayer }

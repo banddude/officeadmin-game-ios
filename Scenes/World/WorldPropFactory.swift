@@ -160,9 +160,12 @@ enum WorldPropFactory {
 
     // MARK: Ground board
 
-    /// The whole ground: base slab, water band in the west with a sand strip,
-    /// a grid of cream blocks whose gaps read as streets, sage parks, trees,
-    /// and low-rise filler buildings between the real job sites.
+    /// The whole ground: base slab, ocean along the west and across the
+    /// whole south foreground, an organic scatter of cream blocks (streets
+    /// show in the jittered gaps, one boulevard runs at an angle), sage
+    /// parks, round trees inland, palms on the shore, a pier over the water,
+    /// and low-rise filler buildings that always stay smaller and cooler
+    /// than the real job sites.
     static func groundBoard(board: WorldBoard, rng: inout SeededGenerator) -> Entity {
         let root = Entity()
         root.name = "ground"
@@ -188,77 +191,121 @@ enum WorldPropFactory {
                         at: SIMD3(-boardSize.x / 2 + waterWidth + 0.9, -0.08, 0))
         root.addChild(beach)
 
-        // The ocean wraps the south edge too (like the mockup), meeting the
-        // west band at the corner and stopping at the slab's east edge;
-        // sand runs along the shore.
-        let southDepth = waterWidth + 3.5
-        root.addChild(box(SIMD3(boardSize.x + waterWidth / 2, 0.5, southDepth), WorldPalette.water,
-                          at: SIMD3(-waterWidth / 4, -0.18,
-                                    boardSize.y / 2 + southDepth / 2 - 1.2)))
-        root.addChild(box(SIMD3(boardSize.x + waterWidth / 2, 0.52, 1.8), WorldPalette.sand,
-                          at: SIMD3(-waterWidth / 4, -0.08, boardSize.y / 2 - 0.4)))
+        // The south ocean fills the whole near foreground — wider than the
+        // slab so the sea wraps both bottom corners of the frame, and deep
+        // enough that water, not sky, meets the bottom edge of the screen.
+        let southDepth = waterWidth + 26
+        let southWidth = boardSize.x + waterWidth * 2 + 10
+        root.addChild(box(SIMD3(southWidth, 0.5, southDepth), WorldPalette.water,
+                          at: SIMD3(0, -0.18,
+                                    boardSize.y / 2 + southDepth / 2 - 1.6)))
+        // A brighter surf line, then the sand the town sits behind.
+        root.addChild(box(SIMD3(southWidth, 0.5, 1.0),
+                          WorldPalette.blend(WorldPalette.water, toward: .white, fraction: 0.45),
+                          at: SIMD3(0, -0.14, boardSize.y / 2 - 0.7)))
+        root.addChild(box(SIMD3(southWidth, 0.52, 2.4), WorldPalette.sand,
+                          at: SIMD3(0, -0.08, boardSize.y / 2 - 1.3)))
+
+        // A weathered pier strolling out over the water, west of the office
+        // path, with a bait shack at the end.
+        let pier = pier()
+        pier.position = SIMD3(-5.5, 0, boardSize.y / 2 - 1.4)
+        root.addChild(pier)
 
         // Hills cap the north horizon, and the city signs its own hillside.
-        for (hx, hr) in [(-27.0, 8.0), (-11.0, 10.0), (7.0, 9.0), (23.0, 7.5), (34.0, 8.0)] {
+        for (hx, hr) in [(-16.0, 8.0), (-6.0, 10.0), (3.0, 9.0), (11.0, 8.0), (18.0, 7.0)] {
             let hill = Entity()
             hill.components.set(ModelComponent(
                 mesh: .generateSphere(radius: Float(hr)),
                 materials: [SimpleMaterial(color: WorldPalette.blend(WorldPalette.park, toward: .white, fraction: 0.18),
                                            isMetallic: false)]))
-            hill.scale = SIMD3(1, 0.4, 0.72)
+            hill.scale = SIMD3(1, 0.42, 0.72)
             hill.position = SIMD3(Float(hx), -0.6, -boardSize.y / 2 - Float(hr) * 0.5)
             root.addChild(hill)
         }
-        let sign = text("LOS ANGELES", height: 1.5,
+        let sign = text("LOS ANGELES", height: 1.8,
                         color: WorldPalette.blend(WorldPalette.stucco, toward: .white, fraction: 0.35))
-        sign.position += SIMD3(3, 2.4, -boardSize.y / 2 - 3.4)
+        sign.position += SIMD3(3, 2.6, -boardSize.y / 2 - 3.6)
         root.addChild(sign)
 
-        // City blocks. Every block gets a warm pad, even when a real site or
-        // the office occupies it, so the open space reads as a town grid
-        // instead of a gray plaza. Unoccupied blocks get parks or small
-        // background buildings that stay lower than the actual job sites.
-        let pitch: Float = 7.4
-        let blockHalf: Float = 2.85
-        let firstX = -boardSize.x / 2 + waterWidth + 3.4
-        var x = firstX + pitch / 2
-        while x < boardSize.x / 2 - 3.0 {
-            var y = -boardSize.y / 2 + pitch / 2
-            while y < boardSize.y / 2 - 3.0 {
-                defer { y += pitch }
-                let blockRect = BoardRect.size(blockHalf * 2, blockHalf * 2, at: SIMD2(x, y))
+        // One boulevard cutting the grid at an angle, laid just under the
+        // block pads — the town's streets aren't all cardinal.
+        let boulevard = box(SIMD3(2.6, 0.12, boardSize.y * 0.95), WorldPalette.path,
+                            at: SIMD3(-3, 0.06, -2), rotationY: 0.30)
+        root.addChild(boulevard)
+        let crossStreet = box(SIMD3(2.2, 0.12, boardSize.y * 0.9), WorldPalette.path,
+                              at: SIMD3(8, 0.06, -6), rotationY: -0.18)
+        root.addChild(crossStreet)
+
+        // City blocks — organic, not a grid: every row and column breathes
+        // (jittered pitch), pads vary in size, a few cells open into plazas
+        // or parks, and each pad turns a couple of degrees off cardinal.
+        // Real sites and the office keep their reserved pads (their own
+        // grounds sit on top) but never share a block with filler.
+        let southLimit = boardSize.y / 2 - 3.0
+        var y = -boardSize.y / 2 + 3.4
+        while y < southLimit {
+            defer { y += 6.1 + rng.float(in: -0.6...0.8) }
+            var x = -boardSize.x / 2 + waterWidth + 3.0 + rng.float(in: 0...0.7)
+            while x < boardSize.x / 2 - 2.4 {
+                defer { x += 5.9 + rng.float(in: -0.7...0.9) }
+                let halfX = 2.2 + rng.float(in: -0.45...0.3)
+                let halfY = 2.2 + rng.float(in: -0.45...0.3)
+                let center = SIMD2(x + rng.float(in: -0.35...0.35),
+                                   y + rng.float(in: -0.35...0.35))
+                let blockRect = BoardRect.size(halfX * 2, halfY * 2, at: center)
                 let reserved = blockRect.overlaps(board.officeFootprint, gap: 0.45) ||
                     board.buildingFootprints.values.contains(where: { $0.overlaps(blockRect, gap: 0.25) })
-                let isPark = !reserved && rng.chance(0.22)
-                let color = isPark ? WorldPalette.park : WorldPalette.block
-                root.addChild(box(SIMD3(blockHalf * 2, 0.14, blockHalf * 2), color,
-                                  at: SIMD3(x, 0.07, y)))
+                let isPark = !reserved && rng.chance(0.20)
+                let isPlaza = !reserved && !isPark && rng.chance(0.12)
+                let color = isPark
+                    ? WorldPalette.park
+                    : WorldPalette.blend(WorldPalette.block,
+                                         toward: rng.chance(0.5) ? .white : WorldPalette.sand,
+                                         fraction: 0.12)
+                let pad = box(SIMD3(halfX * 2, 0.14, halfY * 2), color,
+                              at: SIMD3(center.x, 0.07, center.y),
+                              rotationY: rng.float(in: -0.05...0.05))
+                root.addChild(pad)
 
+                if reserved { continue }
                 if isPark {
                     let trees = rng.chance(0.55) ? 3 : 2
                     for _ in 0..<trees {
-                        let tree = tree(rng: &rng)
-                        tree.position = SIMD3(x + rng.float(in: -1.65...1.65), 0,
-                                              y + rng.float(in: -1.65...1.65))
-                        root.addChild(tree)
+                        let nearShore = center.y > boardSize.y / 2 - 14
+                        let sapling = nearShore && rng.chance(0.6)
+                            ? palmTree(rng: &rng)
+                            : tree(rng: &rng)
+                        sapling.position = SIMD3(center.x + rng.float(in: -halfX...halfX) * 0.7, 0,
+                                                 center.y + rng.float(in: -halfY...halfY) * 0.7)
+                        root.addChild(sapling)
                     }
-                } else if !reserved {
-                    let fillerCount = rng.chance(0.62) ? 2 : 1
-                    let offsets = [SIMD2<Float>(-1.25, -1.10), SIMD2<Float>(1.15, 1.05)]
+                } else if !isPlaza {
+                    let fillerCount = rng.chance(0.6) ? 2 : 1
+                    let offsets = [SIMD2<Float>(-1.15, -1.0), SIMD2<Float>(1.05, 1.0)]
                     for index in 0..<fillerCount {
                         root.addChild(townBuilding(
                             rng: &rng,
-                            at: SIMD2(x, y) + offsets[index]))
+                            at: SIMD2(center.x, center.y) + offsets[index]))
                     }
-                    if rng.chance(0.78) {
-                        let tree = tree(rng: &rng)
-                        tree.position = SIMD3(x + rng.float(in: -1.8...1.8), 0,
-                                              y + blockHalf - 0.45)
-                        root.addChild(tree)
+                    if rng.chance(0.5) {
+                        let sapling = center.y > boardSize.y / 2 - 18 && rng.chance(0.5)
+                            ? palmTree(rng: &rng)
+                            : tree(rng: &rng)
+                        sapling.position = SIMD3(center.x + rng.float(in: -1.5...1.5), 0,
+                                                 center.y + halfY - 0.4)
+                        root.addChild(sapling)
                     }
                 }
             }
-            x += pitch
+        }
+
+        // Palms scattered along the beach, leaning every which way.
+        for _ in 0..<7 {
+            let palm = palmTree(rng: &rng)
+            palm.position = SIMD3(-boardSize.x / 2 + waterWidth + rng.float(in: 0.4...2.6), 0,
+                                  rng.float(in: -boardSize.y / 2 + 6...boardSize.y / 2 - 4))
+            root.addChild(palm)
         }
 
         // A little path from the office door to the board's south edge.
@@ -270,26 +317,109 @@ enum WorldPropFactory {
         return root
     }
 
+    /// A weathered pier: plank deck on posts, cross slats, a bait shack.
+    /// Local +z runs from the beach out over the water.
+    private static func pier() -> Entity {
+        let pier = Entity()
+        let plankColor = WorldPalette.blend(WorldPalette.wood, toward: WorldPalette.sand, fraction: 0.3)
+        pier.addChild(box(SIMD3(2.2, 0.16, 9.0), plankColor, at: SIMD3(0, 0.62, 4.5)))
+        for z in stride(from: Float(1.0), through: 8.5, by: 1.25) {
+            pier.addChild(box(SIMD3(2.3, 0.05, 0.28),
+                              WorldPalette.blend(plankColor, toward: .black, fraction: 0.12),
+                              at: SIMD3(0, 0.72, z)))
+        }
+        for z in [Float(1.2), 4.2, 7.4] {
+            for side in [Float(-0.9), 0.9] {
+                pier.addChild(post(radius: 0.07, height: 1.3, WorldPalette.wood,
+                                   at: SIMD3(side, -0.2, z)))
+            }
+        }
+        // Bait shack at the seaward end.
+        pier.addChild(box(SIMD3(1.8, 1.15, 1.5), WorldPalette.stucco,
+                          at: SIMD3(0, 1.27, 8.0)))
+        pier.addChild(box(SIMD3(2.2, 0.2, 1.9), WorldPalette.terracotta,
+                          at: SIMD3(0, 1.95, 8.0)))
+        pier.addChild(box(SIMD3(0.5, 0.55, 0.06), WorldPalette.vest,
+                          at: SIMD3(0, 1.25, 8.78)))
+        return pier
+    }
+
+    /// A palm: slim leaning trunk, a radial burst of long flat fronds,
+    /// a coconut or two. Reads instantly next to the round park trees.
+    static func palmTree(rng: inout SeededGenerator) -> Entity {
+        let palm = Entity()
+        let height = rng.float(in: 1.7...2.4)
+        let trunk = post(radius: 0.055, height: height,
+                         WorldPalette.blend(WorldPalette.wood, toward: WorldPalette.sand, fraction: 0.35))
+        palm.addChild(trunk)
+        // The whole tree leans a little, like beach palms do.
+        palm.orientation = simd_quatf(angle: rng.float(in: -0.10...0.10), axis: [0, 0, 1])
+
+        let crown = Entity()
+        crown.position = SIMD3(0, height + 0.05, 0)
+        palm.addChild(crown)
+        let frondCount = 5 + (rng.chance(0.5) ? 1 : 0)
+        for index in 0..<frondCount {
+            let yaw = simd_quatf(angle: Float(index) * (2 * .pi / Float(frondCount))
+                                        + rng.float(in: -0.2...0.2), axis: [0, 1, 0])
+            let pitch = simd_quatf(angle: rng.float(in: (-0.6)...(-0.35)), axis: [1, 0, 0])
+            let orientation = yaw * pitch
+            let frond = Entity()
+            frond.components.set(ModelComponent(
+                mesh: .generateSphere(radius: 0.5),
+                materials: [SimpleMaterial(color: rng.chance(0.6) ? WorldPalette.canopy : WorldPalette.canopyDark,
+                                           isMetallic: false)]))
+            frond.scale = SIMD3(0.35, 0.06, 1.25)
+            frond.orientation = orientation
+            frond.position = orientation.act(SIMD3(0, 0, 0.55))
+            crown.addChild(frond)
+        }
+        for cx in [-0.09, 0.07] {
+            let coconut = Entity()
+            coconut.components.set(ModelComponent(
+                mesh: .generateSphere(radius: 0.09),
+                materials: [SimpleMaterial(color: WorldPalette.wood, isMetallic: false)]))
+            coconut.position = SIMD3(Float(cx), -0.08, 0.05)
+            crown.addChild(coconut)
+        }
+        return palm
+    }
+
+    /// Small background architecture: one or two stories, muted walls, a
+    /// mix of roof tints — deliberately smaller and cooler than the real
+    /// job-site buildings so the sites carry the scene.
     private static func townBuilding(rng: inout SeededGenerator,
                                      at center: SIMD2<Float>) -> Entity {
         let group = Entity()
-        let width = rng.float(in: 1.45...2.25)
-        let depth = rng.float(in: 1.35...2.10)
-        let height = rng.float(in: 0.85...1.65)
-        let wall = rng.chance(0.5)
-            ? WorldPalette.stucco
-            : WorldPalette.blend(WorldPalette.block, toward: WorldPalette.terracotta, fraction: 0.16)
+        let width = rng.float(in: 1.1...2.3)
+        let depth = rng.float(in: 1.0...2.1)
+        let height = rng.float(in: 0.7...1.5)
+        let wall = WorldPalette.blend(WorldPalette.block,
+                                      toward: rng.chance(0.5) ? WorldPalette.ground : .white,
+                                      fraction: 0.25)
         group.addChild(box(SIMD3(width, height, depth), wall,
                            at: SIMD3(0, height / 2 + 0.14, 0)))
-        let roofColor = rng.chance(0.72) ? WorldPalette.terracotta : WorldPalette.canopy
-        group.addChild(box(SIMD3(width + 0.18, 0.16, depth + 0.18), roofColor,
-                           at: SIMD3(0, height + 0.22, 0)))
-        if rng.chance(0.42) {
-            group.addChild(box(SIMD3(width * 0.45, 0.11, depth * 0.42),
-                               WorldPalette.blend(roofColor, toward: .white, fraction: 0.25),
-                               at: SIMD3(0, height + 0.35, 0)))
+        let roofPalette = [
+            WorldPalette.terracotta,
+            WorldPalette.blend(WorldPalette.terracotta, toward: .white, fraction: 0.3),
+            WorldPalette.canopy,
+            WorldPalette.blend(WorldPalette.canopy, toward: .white, fraction: 0.25),
+            WorldPalette.blend(WorldPalette.vest, toward: .white, fraction: 0.35)
+        ]
+        let roofColor = roofPalette[Int(rng.next() % UInt64(roofPalette.count))]
+        group.addChild(box(SIMD3(width + 0.16, 0.14, depth + 0.16), roofColor,
+                           at: SIMD3(0, height + 0.21, 0)))
+        if rng.chance(0.3) {
+            // A second story set back, like the older storefronts.
+            let upper = box(SIMD3(width * 0.7, height * 0.6, depth * 0.7), wall,
+                            at: SIMD3(0, height + 0.14 + height * 0.3 + 0.05, 0))
+            group.addChild(upper)
+            group.addChild(box(SIMD3(width * 0.7 + 0.14, 0.12, depth * 0.7 + 0.14),
+                               WorldPalette.blend(roofColor, toward: .white, fraction: 0.2),
+                               at: SIMD3(0, height + 0.14 + height * 0.6 + 0.16, 0)))
         }
         group.position = SIMD3(center.x, 0, center.y)
+        group.orientation = simd_quatf(angle: rng.float(in: -0.06...0.06), axis: [0, 1, 0])
         return group
     }
 
@@ -413,25 +543,48 @@ enum WorldPropFactory {
         return pin
     }
 
-    /// The site's name/scope label card, floating over the building.
+    /// The site's name/scope label card, floating over the building. Text
+    /// runs large (the billboard pass scales it with camera distance) and
+    /// names are kept to a card, not a paragraph — real project names can
+    /// run a full sentence.
     static func siteLabel(for site: WorldSite) -> Entity {
         let group = Entity()
-        let name = text(site.name, height: 0.30, color: WorldPalette.ink)
-        let scope = text((site.scopeLabel ?? site.phase.label).uppercased(),
-                         height: 0.155,
+        let name = text(WorldPropFactory.ellipsize(site.name, to: 18), height: 0.34, color: WorldPalette.ink)
+        let scopeRaw = (site.scopeLabel ?? site.phase.label).uppercased()
+        let scope = text(WorldPropFactory.ellipsize(scopeRaw, to: 16), height: 0.17,
                          color: WorldPalette.blend(WorldPalette.ink, toward: .white, fraction: 0.35),
                          weight: .semibold)
 
         let nameWidth = name.components[ModelComponent.self]?.mesh.bounds.max.x ?? 1.0
         let scopeWidth = scope.components[ModelComponent.self]?.mesh.bounds.max.x ?? 1.0
-        let plateWidth = max(nameWidth, scopeWidth) + 0.34
-        let plate = box(SIMD3(plateWidth, 0.66, 0.05), WorldPalette.stucco, at: .zero)
+        let plateWidth = max(nameWidth, scopeWidth) + 0.38
+        let plate = box(SIMD3(plateWidth, 0.74, 0.05), WorldPalette.stucco, at: .zero)
         group.addChild(plate)
 
-        name.position += SIMD3(0, 0.13, 0.04)
-        scope.position += SIMD3(0, -0.17, 0.04)
+        name.position += SIMD3(0, 0.15, 0.04)
+        scope.position += SIMD3(0, -0.19, 0.04)
         group.addChild(name)
         group.addChild(scope)
+        return group
+    }
+
+    private static func ellipsize(_ string: String, to limit: Int) -> String {
+        guard string.count > limit else { return string }
+        let kept = String(string.prefix(limit - 1)).trimmingCharacters(in: .whitespaces)
+        return kept + "…"
+    }
+
+    /// A tiny nameplate floating over a crew character's head, so "who is
+    /// standing there" reads at diorama distance.
+    static func crewNameLabel(_ name: String) -> Entity {
+        let group = Entity()
+        let label = text(WorldPropFactory.ellipsize(name, to: 12),
+                         height: 0.22, color: WorldPalette.ink, weight: .semibold)
+        let width = label.components[ModelComponent.self]?.mesh.bounds.max.x ?? 0.8
+        group.addChild(box(SIMD3(width + 0.24, 0.36, 0.05),
+                           WorldPalette.blend(WorldPalette.stucco, toward: .white, fraction: 0.25)))
+        label.position += SIMD3(0, 0, 0.035)
+        group.addChild(label)
         return group
     }
 

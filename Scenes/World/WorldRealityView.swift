@@ -66,8 +66,19 @@ final class WorldGameController: NSObject {
 
     // Camera
     private var cameraEntity = Entity()
-    private let cameraElevation: Float = 57 * .pi / 180
+    /// The mockup diorama angle: low enough that the near edge looms large
+    /// and the far edge compresses under the HUD — not a tabletop view.
+    private let cameraElevation: Float = 40 * .pi / 180
     private let cameraBoardMargin: Float = 1.10
+    /// The board row whose width the camera actually fits: the southern
+    /// sites/office strip. South of it runs only sea, which may bleed off
+    /// the bottom corners of the frame the way a coast does.
+    private var cameraFitRowZ: Float { WorldBoard.size.y / 2 - 6 }
+    /// The board is narrower than the camera axis of symmetry (the west
+    /// band is ocean): aim at the middle of the strip sites are laid out in.
+    private var cameraLookX: Float {
+        (-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth + WorldBoard.size.x / 2 - WorldBoard.padding) / 2
+    }
 
     // Signals to SwiftUI
     var moveInput = SIMD2<Float>.zero         // x east, y forward (north)
@@ -99,8 +110,9 @@ final class WorldGameController: NSObject {
         anchor.addChild(cameraEntity)
 
         player = WorldPropFactory.character(shirt: WorldPalette.vest)
-        // The hero reads at diorama distance without outsizing the doors.
-        player.scale = SIMD3(repeating: 1.5)
+        // Hero scale: the hard hat and vest read clearly at the resting
+        // diorama camera, not a dot on the board.
+        player.scale = SIMD3(repeating: 2.2)
         if let legL = player.findEntity(named: "legL"),
            let legR = player.findEntity(named: "legR"),
            let body = player.findEntity(named: "body") {
@@ -188,7 +200,7 @@ final class WorldGameController: NSObject {
             worldRoot.addChild(pin)
 
             let label = WorldPropFactory.siteLabel(for: site)
-            label.position = SIMD3(footprint.center.x, roofline + 0.78, footprint.center.y)
+            label.position = SIMD3(footprint.center.x, roofline + 1.5, footprint.center.y)
             worldRoot.addChild(label)
             siteLabels.append(label)
         }
@@ -242,60 +254,96 @@ final class WorldGameController: NSObject {
 
     private struct Wanderer {
         let entity: Entity
+        let label: Entity
         let legs: (Entity, Entity)
         var position: SIMD2<Float>
         var target: SIMD2<Float>
         var pauseRemaining: Float
         var heading: Float
         var phase: Float
+        /// Where this person belongs: their site's yard, or the office front.
+        let anchor: SIMD2<Float>
         var rng: SeededGenerator
     }
 
     private var crewSignature = ""
+    private var crewLabels: [Entity] = []
 
     private func rebuildCrewIfNeeded(_ world: WorldState) {
-        let crew = world.crew.filter { !$0.isPlayer }.prefix(4)
+        // Real people only — the server's automation accounts never stand
+        // anywhere, and the board shows a crew, not a member list.
+        let crew = world.crew
+            .filter { !$0.isPlayer && !$0.isServiceAccount }
+            .prefix(6)
         let signature = crew.map { "\($0.id)@\($0.assignmentSiteID ?? "office")" }.joined(separator: "|")
         guard signature != crewSignature else { return }
         crewSignature = signature
 
         wanderers.forEach { $0.entity.removeFromParent() }
+        crewLabels.forEach { $0.removeFromParent() }
         wanderers = []
+        crewLabels = []
 
         let shirts: [UIColor] = [WorldPalette.canopy, WorldPalette.sky, UIColor(Theme.clay),
                                  WorldPalette.blend(WorldPalette.canopy, toward: .white, fraction: 0.2)]
-        var available = Array(board.sitePositions.values)
-        available.append(board.officeDoorPoint + SIMD2(3, 2))
-        guard !available.isEmpty else { return }
-
         for (index, member) in crew.enumerated() {
             var rng = SeededGenerator(SeededGenerator.seed(from: ["crew", member.id]))
-            let start = available[index % available.count]
+            let start = crewAnchor(for: member, index: index)
             let entity = WorldPropFactory.character(shirt: shirts[index % shirts.count])
-            entity.scale = SIMD3(repeating: 1.2)
+            entity.scale = SIMD3(repeating: 1.5)
             entity.position = boardPoint(start)
             anchor.addChild(entity)
+
+            let nameplate = WorldPropFactory.crewNameLabel(member.name)
+            nameplate.position = boardPoint(start) + SIMD3(0, 2.55, 0)
+            anchor.addChild(nameplate)
+            crewLabels.append(nameplate)
+
             guard let legL = entity.findEntity(named: "legL"),
                   let legR = entity.findEntity(named: "legR") else { continue }
             wanderers.append(Wanderer(
                 entity: entity,
+                label: nameplate,
                 legs: (legL, legR),
                 position: start,
                 target: start,
                 pauseRemaining: rng.float(in: 0.5...2.5),
                 heading: rng.float(in: 0...(2 * .pi)),
                 phase: rng.float(in: 0...(2 * .pi)),
+                anchor: start,
                 rng: rng))
         }
     }
 
-    /// Where a crew member might be headed: a site's front step or the office.
-    private var wanderTargets: [SIMD2<Float>] {
-        var targets = board.buildingFootprints.values.map {
-            WorldWalk.approachPoint(for: $0, from: SIMD2($0.center.x, $0.maxY + 6), standoff: 1.6)
+    /// Where a crew member belongs: at their site's front step when today's
+    /// schedule or timesheet names one, else on the office front steps.
+    private func crewAnchor(for member: WorldCrewMember, index: Int) -> SIMD2<Float> {
+        if let siteID = member.assignmentSiteID,
+           let rect = board.buildingFootprints[siteID] {
+            // Approach from the street (south of the building), staggered a
+            // little so two crew at one site don't share a pixel.
+            return WorldWalk.clamp(
+                WorldWalk.approachPoint(
+                    for: rect, from: SIMD2(rect.center.x + Float(index % 3 - 1) * 1.4, rect.maxY + 6),
+                    standoff: 2.0 + Float(index % 2)),
+                to: board.walkableRect)
         }
-        targets.append(board.officeDoorPoint + SIMD2(1.5, 1.5))
-        return targets
+        // Office: two staggered rows along the office's south face.
+        let base = SIMD2(board.officeFootprint.minX + 1.6, board.walkableRect.maxY)
+        return WorldWalk.clamp(
+            SIMD2(base.x + Float(index) * 1.7,
+                  base.y - 0.25 - Float(index % 2) * 0.4),
+            to: board.walkableRect)
+    }
+
+    /// Crew potter around where they belong (a site's yard, the office
+    /// front) — the board keeps reading "who is where", not a parade.
+    private func localWanderTarget(anchor: SIMD2<Float>, rng: inout SeededGenerator) -> SIMD2<Float> {
+        let angle = rng.float(in: 0...(2 * .pi))
+        let radius = rng.float(in: 0.6...2.2)
+        return WorldWalk.clamp(
+            anchor + SIMD2(cos(angle) * radius, sin(angle) * radius),
+            to: board.walkableRect)
     }
 
     // MARK: Per-frame update
@@ -357,8 +405,7 @@ final class WorldGameController: NSObject {
     }
 
     private func tickWanderers(deltaTime dt: Float) {
-        let targets = wanderTargets
-        guard !targets.isEmpty else { return }
+        guard !wanderers.isEmpty else { return }
         for index in wanderers.indices {
             var w = wanderers[index]
             if w.pauseRemaining > 0 {
@@ -366,9 +413,9 @@ final class WorldGameController: NSObject {
                 swingLegs(w.legs.0, w.legs.1, phase: 0, amount: 0)
             } else {
                 let step = WorldWalk.stepToward(from: w.position, target: w.target,
-                                                speed: 1.5, dt: dt, stopRadius: 0.6)
+                                                speed: 1.2, dt: dt, stopRadius: 0.6)
                 if step.arrived {
-                    w.target = targets[Int(w.rng.next() % UInt64(targets.count))]
+                    w.target = localWanderTarget(anchor: w.anchor, rng: &w.rng)
                     w.pauseRemaining = w.rng.float(in: 1.5...4.0)
                 } else {
                     w.position = WorldWalk.slide(from: w.position,
@@ -383,6 +430,7 @@ final class WorldGameController: NSObject {
             }
             w.entity.position = boardPoint(w.position)
             w.entity.orientation = simd_quatf(angle: w.heading, axis: [0, 1, 0])
+            w.label.position = boardPoint(w.position) + SIMD3(0, 2.55, 0)
             wanderers[index] = w
         }
     }
@@ -420,36 +468,52 @@ final class WorldGameController: NSObject {
     }
 
     private func placeCamera() {
-        // Fit the full 72-unit board width to the current portrait viewport.
-        // The width is the limiting dimension on an iPhone, so derive the
-        // line-of-sight distance from the horizontal FOV and keep a little
-        // breathing room for the hills and ocean edge.
+        // Fit the board's width at the SOUTHERN SITES ROW to the portrait
+        // viewport (the near edge is where width is tightest; everything
+        // farther north is deeper in the frame and fits for free). Solve
+        // the ground distance cz from the triangle
+        //   (cz - fitZ)^2 + (cz * tanE)^2 = fitDistance^2
+        // then hang the camera above it at the diorama angle. The near
+        // foreground past the fit row is open sea, which fills the bottom
+        // of the frame instead of leaving a sky margin under a tabletop.
         let bounds = arView.bounds.size
         let aspect = bounds.width > 1 && bounds.height > 1
             ? Float(bounds.width / bounds.height)
             : Float(1179.0 / 2556.0)
         let verticalFOV = fovDegrees * .pi / 180
         let horizontalFOV = 2 * atan(tan(verticalFOV / 2) * max(aspect, 0.35))
-        let halfWidth = WorldBoard.size.x * cameraBoardMargin / 2
-        let lineOfSight = halfWidth / max(tan(horizontalFOV / 2), 0.05)
+        let halfSpan = WorldBoard.size.x * cameraBoardMargin / 2
+        let fitDistance = halfSpan / max(tan(horizontalFOV / 2), 0.05)
+        let fitZ = cameraFitRowZ
+        let tanE = tan(cameraElevation)
+        let a = 1 + tanE * tanE
+        let discriminant = 4 * (a * fitDistance * fitDistance - tanE * tanE * fitZ * fitZ)
+        let cz = discriminant > 0 ? (2 * fitZ + sqrt(discriminant)) / (2 * a) : fitDistance
 
-        cameraEntity.position = SIMD3(
-            0,
-            lineOfSight * sin(cameraElevation),
-            lineOfSight * cos(cameraElevation))
-        cameraEntity.look(at: SIMD3(0, 0.5, -2.0), from: cameraEntity.position, relativeTo: nil)
-        updateSiteLabels()
+        let lookX = cameraLookX
+        cameraEntity.position = SIMD3(lookX, cz * tanE, cz)
+        cameraEntity.look(at: SIMD3(lookX, 0.5, -3.0), from: cameraEntity.position, relativeTo: nil)
+        updateBillboards()
     }
 
-    private func updateSiteLabels() {
+    /// Billboards every floating card (site labels, crew nameplates) to the
+    /// camera, scaling with distance so text stays legible on a phone.
+    private func updateBillboards() {
         let cameraPosition = cameraEntity.position(relativeTo: nil)
         for label in siteLabels {
             let labelPosition = label.position(relativeTo: nil)
             let distance = simd_distance(cameraPosition, labelPosition)
-            let scale = min(max(distance / 145 * 0.62, 0.50), 0.78)
+            let scale = min(max(distance / 26, 1.7), 3.4)
             label.scale = SIMD3(repeating: scale)
             // Matching the camera orientation keeps the label plate parallel
             // to the screen while its +Z face points back toward the camera.
+            label.orientation = cameraEntity.orientation
+        }
+        for label in crewLabels {
+            let labelPosition = label.position(relativeTo: nil)
+            let distance = simd_distance(cameraPosition, labelPosition)
+            let scale = min(max(distance / 26, 1.7), 3.4)
+            label.scale = SIMD3(repeating: scale)
             label.orientation = cameraEntity.orientation
         }
     }

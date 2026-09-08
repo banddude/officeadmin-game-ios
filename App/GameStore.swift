@@ -13,6 +13,7 @@
 import CoreLocation
 import Foundation
 import Observation
+import os
 
 @MainActor
 @Observable
@@ -27,12 +28,20 @@ final class GameStore {
         case failed(String)
     }
 
+    private static let log = Logger(subsystem: "com.officeadmin.game", category: "world")
+
     private(set) var phase: Phase = .needsSetup
     private(set) var world = WorldState(sites: [], crew: [], mail: [], money: .empty, whiteboard: [], playerName: nil)
     private(set) var lastLoadedAt: Date?
 
     private var client: OAClient?
     private let geocoder = AddressGeocoder()
+    /// True while the delayed heal pass (retry detail fetches + geocodes) is
+    /// pending.
+    private var worldHealScheduled = false
+    /// What the last load worked from, so the heal pass can fill gaps.
+    private var lastInputs: WorldInputs?
+    private var lastProjectIDs: [String] = []
 
     // MARK: Connection
 
@@ -131,6 +140,7 @@ final class GameStore {
                 invoices: try await invoices,
                 invoiceSummary: await summary,
                 playerProfileName: await profile?.name,
+                serverHost: client.credentials.baseURL.host,
                 now: Date())
 
             var mapped = WorldMapper.map(inputs)
@@ -142,12 +152,56 @@ final class GameStore {
                     mapped.sites[idx].coordinate = await geocoder.coordinate(for: address)
                 }
             }
+            logGeocodeSummary(mapped.sites)
 
             world = mapped
             lastLoadedAt = Date()
             phase = .ready
+            scheduleGeocodeRetry()
         } catch {
             phase = .failed(error.localizedDescription)
+        }
+    }
+
+    // MARK: Geocode follow-up
+
+    /// Say where the board stands after a load: how many sites placed, and
+    /// which addresses are still waiting (the geocoder logs each miss itself).
+    private func logGeocodeSummary(_ sites: [WorldSite]) {
+        let placed = sites.filter { $0.coordinate != nil }.count
+        let misses = sites.filter { $0.coordinate == nil && $0.pendingGeocodeAddress != nil }
+        let addressless = sites.count - placed - misses.count
+        Self.log.info("world board: \(placed) sites placed, \(addressless) projects without an address, \(misses.count) geocode misses")
+        if !misses.isEmpty {
+            Self.log.warning("geocode still waiting on: \(misses.compactMap(\.pendingGeocodeAddress).joined(separator: " | "), privacy: .public)")
+        }
+    }
+
+    /// One delayed second pass over geocode misses: Apple's geocoder often
+    /// succeeds a beat later, and the board should heal itself without a
+    /// manual refresh. The geocoder's own attempt cap bounds total retries.
+    private func scheduleGeocodeRetry() {
+        let pending = world.sites.filter { $0.coordinate == nil && $0.pendingGeocodeAddress != nil }
+        guard !pending.isEmpty, !geocodeRetryScheduled else { return }
+        geocodeRetryScheduled = true
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(12))
+            guard let self, self.phase == .ready else { return }
+            var updated = self.world
+            var changed = false
+            for idx in updated.sites.indices {
+                if updated.sites[idx].coordinate == nil,
+                   let address = updated.sites[idx].pendingGeocodeAddress,
+                   let coordinate = await self.geocoder.coordinate(for: address) {
+                    updated.sites[idx].coordinate = coordinate
+                    changed = true
+                }
+            }
+            if changed {
+                self.world = updated
+                Self.log.info("geocode retry pass placed more sites")
+            }
+            self.geocodeRetryScheduled = false
         }
     }
 

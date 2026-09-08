@@ -95,10 +95,14 @@ struct WorldCrewMember: Identifiable, Equatable {
     let id: String                 // users.id
     let name: String
     let role: String?
+    let email: String?
     let assignment: Assignment
     let isPlayer: Bool
     /// True when a running time entry puts them on a site right now.
     let isClockedIn: Bool
+    /// True for the server's own automation accounts, which are people-shaped
+    /// in the member list but never stand anywhere. Computed at map time.
+    let isServiceAccount: Bool
 
     enum Assignment: Equatable {
         case atSite(siteID: String, siteName: String)
@@ -114,6 +118,18 @@ struct WorldCrewMember: Identifiable, Equatable {
         case .onRoad(let siteID, _): return siteID
         case .office, .offToday: return nil
         }
+    }
+
+    /// Automation accounts carry mail on the server's own domain (or a
+    /// `.local` host). They get API access, not a body on the board.
+    static func serviceAccount(email: String?, serverHost: String?) -> Bool {
+        guard let email,
+              let at = email.lastIndex(of: "@"),
+              at < email.index(before: email.endIndex) else { return false }
+        let host = String(email[email.index(after: at)...]).lowercased()
+        if host.hasSuffix(".local") { return true }
+        guard let serverHost = serverHost?.lowercased(), !serverHost.isEmpty else { return false }
+        return host == serverHost || host.hasSuffix("." + serverHost)
     }
 }
 

@@ -71,9 +71,13 @@ struct BoardRect: Equatable {
 /// footprint, and the office in its corner. Built from `WorldSite`s only.
 struct WorldBoard {
     /// The full ground board (x east-west, y north-south), centered at 0.
-    static let size = SIMD2<Float>(72, 48)
+    /// Portrait diorama proportions: narrow enough that the whole width fits
+    /// a phone screen at a low, mockup-like camera; deep enough that the
+    /// near ground fills the bottom of the frame instead of leaving sea and
+    /// sky margins around a tabletop.
+    static let size = SIMD2<Float>(40, 64)
     /// Sites are laid out inside the board inset by this much.
-    static let padding: Float = 9
+    static let padding: Float = 6.5
     /// The west edge is scenery (ocean and beach, like the mockup) — sites
     /// are laid out east of it. Mirrors the ground's water band width.
     static let sceneryWidth: Float = size.x * 0.16 + 3.2
@@ -81,6 +85,10 @@ struct WorldBoard {
     static let losAngelesCenter = CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
     /// Building footprints never come closer than this to each other.
     static let buildingGap: Float = 1.1
+    /// The site-cloud fit leaves this much of the region unused on each side,
+    /// so a site's BUILDING (not just its center point) lands inside the
+    /// region — otherwise edge sites get clamped and proportions break.
+    static let fitMargin: Float = 3.4
 
     /// Board position per site id.
     let sitePositions: [String: SIMD2<Float>]
@@ -126,7 +134,9 @@ struct WorldBoard {
                                   -WorldBoard.size.y / 2 + WorldBoard.padding)
             let regionMax = SIMD2(WorldBoard.size.x / 2 - WorldBoard.padding,
                                   WorldBoard.size.y / 2 - WorldBoard.padding)
-            let usable = regionMax - regionMin
+            // usable = region minus the fit margin ON EACH SIDE, so a cloud
+            // that fills `usable` leaves room for its buildings' halves.
+            let usable = regionMax - regionMin - SIMD2(WorldBoard.fitMargin * 2, WorldBoard.fitMargin * 2)
             let regionCenter = (regionMin + regionMax) / 2
             let span = hi - lo
             // Scale to fit (a degenerate cluster keeps a sane human scale).
@@ -144,12 +154,12 @@ struct WorldBoard {
             }
         }
 
-        // The office lives in the south-east corner, seated so its door (on
-        // the south face) stays inside the walkable board.
+        // The office lives toward the south-east corner, seated so its door
+        // (on the south face) stays inside the walkable board.
         officePosition = SIMD2(
-            WorldBoard.size.x / 2 - 6.8,
-            WorldBoard.size.y / 2 - 7.2)
-        officeFootprint = BoardRect.size(9.6, 7.2, at: officePosition)
+            WorldBoard.size.x / 2 - 6.6,
+            WorldBoard.size.y / 2 - 8.6)
+        officeFootprint = BoardRect.size(9.0, 7.0, at: officePosition)
         walkableRect = BoardRect(
             min: -WorldBoard.size / 2 + SIMD2(2.4, 2.4),
             max: WorldBoard.size / 2 - SIMD2(2.4, 2.4))
@@ -230,7 +240,7 @@ struct WorldBoard {
         let layoutMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
                               -WorldBoard.size.y / 2 + 3.0)
         let layoutMax = WorldBoard.size / 2 - SIMD2(Float(3.0), Float(3.0))
-        for _ in 0..<10 {
+        for _ in 0..<14 {
             var movedAnything = false
             for i in ids.indices {
                 for j in i + 1..<ids.count {
@@ -247,13 +257,23 @@ struct WorldBoard {
                     movedAnything = true
                 }
             }
-            // Keep the office corner sacred: shove sites out of its lot.
+            // Keep the office corner sacred: shove sites out of its lot. Each
+            // escape axis flips when it would shove the site off the board —
+            // on a narrow board there isn't always room on the obvious side.
             for id in ids {
                 guard var rect = rects[id], rect.overlaps(office, gap: WorldBoard.buildingGap) else { continue }
                 var separation = WorldBoard.separationVector(a: rect, b: office,
                                                               gap: WorldBoard.buildingGap)
                 if separation == .zero {
                     separation = SIMD2(-(rect.halfExtents.x + office.halfExtents.x + WorldBoard.buildingGap), 0)
+                }
+                if rect.center.x + separation.x + rect.halfExtents.x > layoutMax.x ||
+                    rect.center.x + separation.x - rect.halfExtents.x < layoutMin.x {
+                    separation.x = -separation.x
+                }
+                if rect.center.y + separation.y + rect.halfExtents.y > layoutMax.y ||
+                    rect.center.y + separation.y - rect.halfExtents.y < layoutMin.y {
+                    separation.y = -separation.y
                 }
                 rect.center += separation
                 rects[id] = rect

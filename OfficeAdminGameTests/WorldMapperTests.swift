@@ -122,6 +122,56 @@ final class WorldMapperTests: XCTestCase {
         XCTAssertEqual(maricar.assignment, .office)
     }
 
+    func testEarlierTodayShiftKeepsCrewAtTheirSite() throws {
+        // Nick's Whitfield shift ended before "now": today's schedule still
+        // says which job had him, so he stands at that site tonight — the
+        // board shows where the day's work happened, not just live clocks.
+        let ended = OAScheduledShift(
+            id: "shift-ended-today",
+            employeeUserId: "7a8b9c0d-0000-4000-8000-000000000002",
+            employeeName: "Nick Brandon",
+            contactId: nil, contactName: nil,
+            eventType: "shift",
+            projectId: "aa11bb22-cc33-4d44-8e55-ff6677889900",
+            projectName: "Whitfield ADU Rough-In",
+            projectContactName: nil, projectSiteAddress: nil,
+            scheduledStart: OAWire.parseISO("2026-09-07T13:00:00.000Z")!,
+            scheduledEnd: OAWire.parseISO("2026-09-07T15:00:00.000Z")!,
+            notes: nil, status: "completed")
+        var local = inputs
+        local.shifts = [ended] + inputs.shifts.filter { $0.id != ended.id && $0.employeeUserId != ended.employeeUserId }
+
+        let crew = WorldMapper.crew(local)
+        let nick = try XCTUnwrap(crew.first { $0.name == "Nick Brandon" })
+        guard case .atSite(let siteID, let siteName) = nick.assignment else {
+            return XCTFail("expected Nick at his earlier-today site, got \(nick.assignment)")
+        }
+        XCTAssertEqual(siteID, "aa11bb22-cc33-4d44-8e55-ff6677889900")
+        XCTAssertTrue(siteName.contains("Whitfield"))
+    }
+
+    func testServiceAccountsAreFlaggedByEmailDomain() {
+        // The server's own automation users aren't people on the board.
+        XCTAssertTrue(WorldCrewMember.serviceAccount(email: "aiva@officeadmin.local",
+                                                     serverHost: "officeadmin.io"))
+        XCTAssertTrue(WorldCrewMember.serviceAccount(email: "bot@sub.officeadmin.io",
+                                                     serverHost: "officeadmin.io"))
+        XCTAssertFalse(WorldCrewMember.serviceAccount(email: "zak@shaffercon.com",
+                                                      serverHost: "officeadmin.io"),
+                       "company mail is a person")
+        XCTAssertFalse(WorldCrewMember.serviceAccount(email: nil, serverHost: "officeadmin.io"),
+                       "no email gets the benefit of the doubt")
+        XCTAssertFalse(WorldCrewMember.serviceAccount(email: "maricar@shaffercon.com",
+                                                      serverHost: nil),
+                       "no server host known — only .local is a safe tell")
+    }
+
+    func testCrewCarryTheirEmailForTheBoard() throws {
+        let nick = try XCTUnwrap(world.crew.first { $0.name == "Nick Brandon" })
+        XCTAssertEqual(nick.email, "nick@shafferconstruction.com")
+        XCTAssertFalse(nick.isServiceAccount, "the fixture roster is all people")
+    }
+
     // MARK: Mail
 
     func testPendingApprovalsBecomeMail() {

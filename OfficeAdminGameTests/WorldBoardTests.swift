@@ -135,12 +135,13 @@ final class WorldBoardTests: XCTestCase {
     // MARK: - Walking
 
     private let block = BoardRect.size(2, 2, at: SIMD2(Float(2.2), Float(0)))
-    private let bounds = BoardRect.size(72 - 4.8, 48 - 4.8, at: .zero)
+    private let bounds = BoardRect.size(
+        WorldBoard.size.x - 4.8, WorldBoard.size.y - 4.8, at: .zero)
 
     func testClampKeepsPointInside() {
         let p = WorldWalk.clamp(SIMD2(Float(50), Float(-40)), to: bounds)
-        XCTAssertEqual(p.x, 36 - 2.4)
-        XCTAssertEqual(p.y, -(48 / 2 - 2.4))
+        XCTAssertEqual(p.x, WorldBoard.size.x / 2 - 2.4)
+        XCTAssertEqual(p.y, -(WorldBoard.size.y / 2 - 2.4))
     }
 
     func testSlideGoesAroundObstaclesOneAxisAtATime() {
