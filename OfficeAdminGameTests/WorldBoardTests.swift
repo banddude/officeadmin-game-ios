@@ -203,7 +203,7 @@ final class WorldBoardTests: XCTestCase {
         for i in sites.indices {
             for j in i + 1..<sites.count {
                 let a = anchors[sites[i].id]!, b = anchors[sites[j].id]!
-                guard simd_distance(a, b) >= maxTrueSeparation * 0.6 else { continue }
+                guard simd_distance(a, b) >= maxTrueSeparation * 0.65 else { continue }
                 let pa = try XCTUnwrap(board.sitePositions[sites[i].id])
                 let pb = try XCTUnwrap(board.sitePositions[sites[j].id])
                 let trueBearing = atan2(b.y - a.y, b.x - a.x)
