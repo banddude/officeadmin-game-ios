@@ -13,3 +13,4 @@ build/
 .swiftpm/
 Secrets.plist
 *.env
+Config/BootstrapCredentials.plist
