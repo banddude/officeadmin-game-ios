@@ -3,10 +3,10 @@
 //
 //  The world as a game, not a map: a RealityKit diorama board built from the
 //  pure WorldBoard layout (real coordinates projected to the ground), with
-//  the player character walked by thumbstick or tap, a follow camera at a
-//  cozy fixed angle, crew wandering between sites, and attention items
-//  waiting to be picked up by walking into them. Apple Maps is never the
-//  visual — only the geocoder behind the scenes.
+//  the player character walked by thumbstick or tap, a board-framing camera,
+//  crew wandering between sites, and attention items waiting to be picked up
+//  by walking into them. Apple Maps is never the visual — only the geocoder
+//  behind the scenes.
 //
 //  Picking follows the office scene's pattern: we own the camera, so a tap
 //  is unprojected into a ray and cast against collision shapes.
@@ -52,6 +52,7 @@ final class WorldGameController: NSObject {
     private var pickups: [(pickup: WorldPickup, entity: Entity, at: SIMD2<Float>)] = []
     private var collected = Set<String>()
     private var wanderers: [Wanderer] = []
+    private var siteLabels: [Entity] = []
 
     // The player
     private var player = Entity()
@@ -65,7 +66,8 @@ final class WorldGameController: NSObject {
 
     // Camera
     private var cameraEntity = Entity()
-    private let cameraOffset = SIMD3<Float>(0, 24, 14)
+    private let cameraElevation: Float = 57 * .pi / 180
+    private let cameraBoardMargin: Float = 1.10
 
     // Signals to SwiftUI
     var moveInput = SIMD2<Float>.zero         // x east, y forward (north)
@@ -163,12 +165,13 @@ final class WorldGameController: NSObject {
                                         board.walkableRect.maxY - 0.2)
             player.position = boardPoint(playerBoardPosition)
             player.orientation = simd_quatf(angle: playerYaw, axis: [0, 1, 0])
-            placeCamera(instant: true)
+            placeCamera()
         }
     }
 
     private func rebuildBoard() {
         worldRoot.children.forEach { $0.removeFromParent() }
+        siteLabels.removeAll()
 
         var rng = SeededGenerator(SeededGenerator.seed(from: Array(sites.keys)))
         worldRoot.addChild(WorldPropFactory.groundBoard(board: board, rng: &rng))
@@ -185,8 +188,9 @@ final class WorldGameController: NSObject {
             worldRoot.addChild(pin)
 
             let label = WorldPropFactory.siteLabel(for: site)
-            label.position = SIMD3(footprint.center.x, roofline + 1.7, footprint.center.y)
+            label.position = SIMD3(footprint.center.x, roofline + 0.78, footprint.center.y)
             worldRoot.addChild(label)
+            siteLabels.append(label)
         }
     }
 
@@ -301,7 +305,7 @@ final class WorldGameController: NSObject {
         tickWanderers(deltaTime: dt)
         tickPickups(deltaTime: dt)
         tickProximity()
-        placeCamera(instant: false, deltaTime: dt)
+        placeCamera()
     }
 
     private var obstacles: [BoardRect] { board.obstacles }
@@ -415,18 +419,39 @@ final class WorldGameController: NSObject {
         }
     }
 
-    private func placeCamera(instant: Bool, deltaTime dt: Float = 0.016) {
-        let desired = boardPoint(playerBoardPosition) + cameraOffset
-        if instant {
-            cameraEntity.position = desired
-        } else {
-            let blend = 1 - exp(-4.5 * dt)
-            cameraEntity.position = cameraEntity.position + (desired - cameraEntity.position) * blend
+    private func placeCamera() {
+        // Fit the full 72-unit board width to the current portrait viewport.
+        // The width is the limiting dimension on an iPhone, so derive the
+        // line-of-sight distance from the horizontal FOV and keep a little
+        // breathing room for the hills and ocean edge.
+        let bounds = arView.bounds.size
+        let aspect = bounds.width > 1 && bounds.height > 1
+            ? Float(bounds.width / bounds.height)
+            : Float(1179.0 / 2556.0)
+        let verticalFOV = fovDegrees * .pi / 180
+        let horizontalFOV = 2 * atan(tan(verticalFOV / 2) * max(aspect, 0.35))
+        let halfWidth = WorldBoard.size.x * cameraBoardMargin / 2
+        let lineOfSight = halfWidth / max(tan(horizontalFOV / 2), 0.05)
+
+        cameraEntity.position = SIMD3(
+            0,
+            lineOfSight * sin(cameraElevation),
+            lineOfSight * cos(cameraElevation))
+        cameraEntity.look(at: SIMD3(0, 0.5, -2.0), from: cameraEntity.position, relativeTo: nil)
+        updateSiteLabels()
+    }
+
+    private func updateSiteLabels() {
+        let cameraPosition = cameraEntity.position(relativeTo: nil)
+        for label in siteLabels {
+            let labelPosition = label.position(relativeTo: nil)
+            let distance = simd_distance(cameraPosition, labelPosition)
+            let scale = min(max(distance / 145 * 0.62, 0.50), 0.78)
+            label.scale = SIMD3(repeating: scale)
+            // Matching the camera orientation keeps the label plate parallel
+            // to the screen while its +Z face points back toward the camera.
+            label.orientation = cameraEntity.orientation
         }
-        // Aim north of the player so the board ahead fills the frame and the
-        // horizon sits near the top edge, like the mockup's diorama view.
-        cameraEntity.look(at: boardPoint(playerBoardPosition) + SIMD3(0, 0.9, -6),
-                          from: cameraEntity.position, relativeTo: nil)
     }
 
     // MARK: Animation helpers
