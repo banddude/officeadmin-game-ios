@@ -297,7 +297,13 @@ enum WorldPropFactory {
                             rng: &rng,
                             at: SIMD2(center.x, center.y) + offsets[index]))
                     }
-                    if rng.chance(0.5) {
+                    if rng.chance(0.3) {
+                        // A palm squeezed in streetside between the blocks.
+                        let palm = palmTree(rng: &rng)
+                        palm.position = SIMD3(center.x + (rng.chance(0.5) ? 1 : -1) * rng.float(in: 1.7...2.2),
+                                              0, center.y + rng.float(in: -1.3...1.3))
+                        root.addChild(palm)
+                    } else if rng.chance(0.5) {
                         let sapling = center.y > boardSize.y / 2 - 18 && rng.chance(0.5)
                             ? palmTree(rng: &rng)
                             : tree(rng: &rng)
@@ -394,20 +400,39 @@ enum WorldPropFactory {
         return palm
     }
 
-    /// Small background architecture: one or two stories, muted walls, a
-    /// mix of roof tints — deliberately smaller and cooler than the real
-    /// job-site buildings so the sites carry the scene.
+    /// Small background architecture: one to three stories, muted walls, a
+    /// mix of roof shapes (gables, parapets, sheds, flats), shop awnings and
+    /// warm windows — deliberately smaller and cooler than the real job-site
+    /// buildings so the sites carry the scene, but varied enough that the
+    /// town reads lived-in rather than stamped from one box.
     private static func townBuilding(rng: inout SeededGenerator,
                                      at center: SIMD2<Float>) -> Entity {
         let group = Entity()
         let width = rng.float(in: 1.1...2.3)
         let depth = rng.float(in: 1.0...2.1)
-        let height = rng.float(in: 0.7...1.5)
+        let storyRoll = Int(rng.next() % 10)
+        let stories = storyRoll < 5 ? 1 : (storyRoll < 8 ? 2 : 3)
+        let floorHeight = stories == 3 ? rng.float(in: 0.62...0.76) : rng.float(in: 0.7...1.05)
+        let baseStories = stories == 3 && rng.chance(0.6) ? 2 : stories
+        let baseHeight = floorHeight * Float(baseStories)
         let wall = WorldPalette.blend(WorldPalette.block,
                                       toward: rng.chance(0.5) ? WorldPalette.ground : .white,
                                       fraction: 0.25)
-        group.addChild(box(SIMD3(width, height, depth), wall,
-                           at: SIMD3(0, height / 2 + 0.14, 0)))
+        group.addChild(box(SIMD3(width, baseHeight, depth), wall,
+                           at: SIMD3(0, baseHeight / 2 + 0.14, 0)))
+
+        // A third story often sets back, like the older storefront blocks.
+        var topWidth = width
+        var topDepth = depth
+        var roofY = baseHeight + 0.14
+        if baseStories < stories {
+            topWidth = width * rng.float(in: 0.6...0.75)
+            topDepth = depth * rng.float(in: 0.6...0.75)
+            group.addChild(box(SIMD3(topWidth, floorHeight, topDepth), wall,
+                               at: SIMD3(0, roofY + floorHeight / 2, 0)))
+            roofY += floorHeight
+        }
+
         let roofPalette = [
             WorldPalette.terracotta,
             WorldPalette.blend(WorldPalette.terracotta, toward: .white, fraction: 0.3),
@@ -416,17 +441,83 @@ enum WorldPropFactory {
             WorldPalette.blend(WorldPalette.vest, toward: .white, fraction: 0.35)
         ]
         let roofColor = roofPalette[Int(rng.next() % UInt64(roofPalette.count))]
-        group.addChild(box(SIMD3(width + 0.16, 0.14, depth + 0.16), roofColor,
-                           at: SIMD3(0, height + 0.21, 0)))
-        if rng.chance(0.3) {
-            // A second story set back, like the older storefronts.
-            let upper = box(SIMD3(width * 0.7, height * 0.6, depth * 0.7), wall,
-                            at: SIMD3(0, height + 0.14 + height * 0.3 + 0.05, 0))
-            group.addChild(upper)
-            group.addChild(box(SIMD3(width * 0.7 + 0.14, 0.12, depth * 0.7 + 0.14),
-                               WorldPalette.blend(roofColor, toward: .white, fraction: 0.2),
-                               at: SIMD3(0, height + 0.14 + height * 0.6 + 0.16, 0)))
+        let roofRoll = Int(rng.next() % 100)
+        if roofRoll < 32 {
+            // Gable: two slopes meeting at a ridge along the long axis.
+            let ridgeAlongX = topWidth >= topDepth
+            let span = (ridgeAlongX ? topDepth : topWidth) / 2 + 0.12
+            let rise = min(rng.float(in: 0.3...0.5), span * 0.9)
+            let slopeLength = (span * span + rise * rise).squareRoot()
+            let slopeAngle = atan2(rise, span)
+            let slabSize = ridgeAlongX ? SIMD3(topWidth + 0.18, 0.09, slopeLength)
+                                       : SIMD3(slopeLength, 0.09, topDepth + 0.18)
+            for side in [Float(-1), 1] {
+                let slab = box(slabSize, roofColor)
+                slab.orientation = simd_quatf(angle: -side * slopeAngle,
+                                              axis: ridgeAlongX ? SIMD3(1, 0, 0) : SIMD3(0, 0, 1))
+                slab.position = SIMD3(ridgeAlongX ? 0 : side * span / 2,
+                                      roofY + rise / 2 + 0.04,
+                                      ridgeAlongX ? side * span / 2 : 0)
+                group.addChild(slab)
+            }
+        } else if roofRoll < 60 {
+            // Flat roof with a parapet rim, the little main-street block.
+            group.addChild(box(SIMD3(topWidth + 0.14, 0.12, topDepth + 0.14), roofColor,
+                               at: SIMD3(0, roofY + 0.06, 0)))
+            let rim: Float = 0.09
+            group.addChild(box(SIMD3(topWidth + 0.2, 0.16, rim), wall,
+                               at: SIMD3(0, roofY + 0.18, topDepth / 2 + 0.03)))
+            group.addChild(box(SIMD3(topWidth + 0.2, 0.16, rim), wall,
+                               at: SIMD3(0, roofY + 0.18, -topDepth / 2 - 0.03)))
+            group.addChild(box(SIMD3(rim, 0.16, topDepth + 0.2), wall,
+                               at: SIMD3(topWidth / 2 + 0.03, roofY + 0.18, 0)))
+            group.addChild(box(SIMD3(rim, 0.16, topDepth + 0.2), wall,
+                               at: SIMD3(-topWidth / 2 - 0.03, roofY + 0.18, 0)))
+        } else if roofRoll < 76 {
+            // Shed: one plane tilting down over the street face.
+            let slab = box(SIMD3(topWidth + 0.16, 0.09, topDepth + 0.2), roofColor)
+            slab.orientation = simd_quatf(angle: -0.22, axis: [1, 0, 0])
+            slab.position = SIMD3(0, roofY + 0.12, 0)
+            group.addChild(slab)
+        } else {
+            group.addChild(box(SIMD3(topWidth + 0.16, 0.14, topDepth + 0.16), roofColor,
+                               at: SIMD3(0, roofY + 0.07, 0)))
         }
+
+        // Warm windows up the street face, one pair per story.
+        if width > 1.4 {
+            for story in 0..<baseStories {
+                let y = 0.14 + (Float(story) + 0.55) * floorHeight
+                for wx in [-width * 0.25, width * 0.25] {
+                    group.addChild(box(SIMD3(0.3, 0.32, 0.04),
+                                       WorldPalette.blend(WorldPalette.vest, toward: .white, fraction: 0.15),
+                                       at: SIMD3(wx, y, depth / 2 + 0.02)))
+                }
+            }
+        }
+
+        // A shopfront: bright band at the sidewalk, an awning sloping out
+        // over it on slim posts.
+        if rng.chance(0.45) {
+            group.addChild(box(SIMD3(width * 0.85, floorHeight * 0.45, 0.04),
+                               WorldPalette.blend(WorldPalette.vest, toward: .white, fraction: 0.3),
+                               at: SIMD3(0, 0.14 + floorHeight * 0.24, depth / 2 + 0.03)))
+            let awningPalette = [WorldPalette.vest, WorldPalette.canopy,
+                                 WorldPalette.blend(WorldPalette.terracotta, toward: .white, fraction: 0.25),
+                                 WorldPalette.water]
+            let awningColor = awningPalette[Int(rng.next() % UInt64(awningPalette.count))]
+            let awningY = 0.14 + floorHeight * 0.78
+            let awning = box(SIMD3(width * 0.92, 0.05, 0.52), awningColor)
+            awning.orientation = simd_quatf(angle: -0.35, axis: [1, 0, 0])
+            awning.position = SIMD3(0, awningY, depth / 2 + 0.28)
+            group.addChild(awning)
+            for px in [-width * 0.3, width * 0.3] {
+                group.addChild(post(radius: 0.025, height: awningY - 0.06,
+                                    WorldPalette.blend(WorldPalette.ink, toward: .white, fraction: 0.2),
+                                    at: SIMD3(px, 0, depth / 2 + 0.5)))
+            }
+        }
+
         group.position = SIMD3(center.x, 0, center.y)
         group.orientation = simd_quatf(angle: rng.float(in: -0.06...0.06), axis: [0, 1, 0])
         return group
