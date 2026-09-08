@@ -249,7 +249,7 @@ struct WorldBoard {
             }
             // Keep the office corner sacred: shove sites out of its lot.
             for id in ids {
-                guard let rect = rects[id], rect.overlaps(office, gap: WorldBoard.buildingGap) else { continue }
+                guard var rect = rects[id], rect.overlaps(office, gap: WorldBoard.buildingGap) else { continue }
                 var separation = WorldBoard.separationVector(a: rect, b: office,
                                                               gap: WorldBoard.buildingGap)
                 if separation == .zero {
