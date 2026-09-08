@@ -255,11 +255,13 @@ struct WorldBoard {
                               -WorldBoard.size.y / 2 + 3.0)
         let layoutMax = WorldBoard.size / 2 - SIMD2(Float(3.0), Float(3.0))
 
-        // Clearance circles: generous enough that two cleared circles leave
-        // their axis-aligned boxes all but clear; a bounded polish pass below
-        // settles any corner graze the circles let through.
+        // Clearance circles at the box HALF-DIAGONAL: a circle of that radius
+        // contains the axis-aligned box in any orientation, so two circles
+        // that clear each other (plus the gap) leave their boxes disjoint —
+        // the bearing each site fanned out on is exactly the bearing it keeps,
+        // and the polish pass below only ever handles clamp-induced contacts.
         func circleRadius(_ r: BoardRect) -> Float {
-            max(r.halfExtents.x, r.halfExtents.y) * 1.25 + WorldBoard.buildingGap / 2
+            simd_length(r.halfExtents) + WorldBoard.buildingGap / 2
         }
         var placed: [(center: SIMD2<Float>, radius: Float)] = [
             (office.center, circleRadius(office))
