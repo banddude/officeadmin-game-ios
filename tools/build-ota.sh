@@ -131,7 +131,7 @@ PY
 
 echo "  profile devices:"
 security cms -D -i "$ADHOC_PROFILE" 2>/dev/null \
-  | /usr/bin/python3 -c 'import plistlib,sys; d=plistlib.load(sys.stdin); devs=d.get("ProvisionedDevices",[]); print("    %d device(s)" % len(devs)); sys.exit(0 if devs else 1)' \
+  | /usr/bin/python3 -c 'import plistlib,sys; d=plistlib.loads(sys.stdin.buffer.read()); devs=d.get("ProvisionedDevices",[]); print("    %d device(s)" % len(devs)); sys.exit(0 if devs else 1)' \
   || die "the ad-hoc profile ($ADHOC_PROFILE) contains NO devices -- Mike's iPhone must be in it. Re-run: fastlane ios adhoc_profile"
 
 # ============================================================ 4. sign frameworks, extensions, app
