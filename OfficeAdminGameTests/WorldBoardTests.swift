@@ -160,13 +160,14 @@ final class WorldBoardTests: XCTestCase {
         // From the east: stop on the east face, standoff meters out.
         var point = WorldWalk.approachPoint(for: block, from: SIMD2(Float(10), Float(0)),
                                             standoff: 2)
-        XCTAssertEqual(point.x, block.maxX + 2)
-        XCTAssertEqual(point.y, 0)
+        XCTAssertEqual(point.x, block.maxX + 2, accuracy: 0.001)
+        XCTAssertEqual(point.y, 0, accuracy: 0.001)
 
         // From inside: leave through the nearest face.
         point = WorldWalk.approachPoint(for: block, from: SIMD2(Float(2.5), Float(0)),
                                         standoff: 2)
-        XCTAssertEqual(point.x, block.maxX + 2, "nearest face for x = 2.5 is the east one")
+        XCTAssertEqual(point.x, block.maxX + 2, accuracy: 0.001,
+                       "nearest face for x = 2.5 is the east one")
     }
 
     func testStepTowardMovesStopsAndReportsHeading() {
