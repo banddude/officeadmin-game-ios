@@ -588,6 +588,18 @@ enum WorldPropFactory {
         return group
     }
 
+    /// A soft unlit line from a staggered site card back to its pin — a unit
+    /// box the caller stretches and aims each frame. Translucent so it reads
+    /// as a pointer, not a post.
+    static func leaderLine() -> Entity {
+        let entity = Entity()
+        let color = WorldPalette.blend(WorldPalette.stucco, toward: WorldPalette.sky, fraction: 0.5)
+        entity.components.set(ModelComponent(
+            mesh: .generateBox(size: SIMD3(1, 1, 1)),
+            materials: [UnlitMaterial(color: color.withAlphaComponent(0.6))]))
+        return entity
+    }
+
     // MARK: The Shaffer office
 
     /// The home node: white stucco, terracotta roof, sage awning, sign over

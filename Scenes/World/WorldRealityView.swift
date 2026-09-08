@@ -52,7 +52,16 @@ final class WorldGameController: NSObject {
     private var pickups: [(pickup: WorldPickup, entity: Entity, at: SIMD2<Float>)] = []
     private var collected = Set<String>()
     private var wanderers: [Wanderer] = []
-    private var siteLabels: [Entity] = []
+    /// Site label cards with the geometry the stagger pass needs: where the
+    /// card floats, how wide its plate is, and where its pin stands.
+    private struct SiteLabel {
+        let entity: Entity
+        let halfSize: SIMD2<Float>   // plate half extents, local units
+        let anchor: SIMD3<Float>     // home position above the roof
+        let pinHead: SIMD3<Float>    // the pin's floating head, for leaders
+        let leader: Entity           // thin line shown when staggered away
+    }
+    private var siteLabels: [SiteLabel] = []
 
     // The player
     private var player = Entity()
@@ -200,10 +209,32 @@ final class WorldGameController: NSObject {
             worldRoot.addChild(pin)
 
             let label = WorldPropFactory.siteLabel(for: site)
-            label.position = SIMD3(footprint.center.x, roofline + 1.5, footprint.center.y)
+            let anchor = SIMD3(footprint.center.x, roofline + 1.5, footprint.center.y)
+            label.position = anchor
             worldRoot.addChild(label)
-            siteLabels.append(label)
+
+            let leader = WorldPropFactory.leaderLine()
+            leader.isEnabled = false
+            worldRoot.addChild(leader)
+
+            siteLabels.append(SiteLabel(
+                entity: label,
+                halfSize: plateHalfSize(of: label),
+                anchor: anchor,
+                pinHead: SIMD3(pin.position.x, roofline + 1.3, pin.position.z),
+                leader: leader))
         }
+    }
+
+    /// A label group's first child is its plate box (the factories build the
+    /// plate before the text); measuring it tells the stagger pass how wide
+    /// and tall each card really is.
+    private func plateHalfSize(of label: Entity) -> SIMD2<Float> {
+        guard let mesh = label.children.first?.components[ModelComponent.self]?.mesh else {
+            return SIMD2(1.2, 0.4)
+        }
+        let extents = mesh.bounds.max - mesh.bounds.min
+        return SIMD2(extents.x / 2, extents.y / 2)
     }
 
     private func rebuildPickupsIfNeeded(_ world: WorldState) {
@@ -255,6 +286,8 @@ final class WorldGameController: NSObject {
     private struct Wanderer {
         let entity: Entity
         let label: Entity
+        let labelHalf: SIMD2<Float>
+        var labelAnchor: SIMD3<Float>
         let legs: (Entity, Entity)
         var position: SIMD2<Float>
         var target: SIMD2<Float>
@@ -267,7 +300,6 @@ final class WorldGameController: NSObject {
     }
 
     private var crewSignature = ""
-    private var crewLabels: [Entity] = []
 
     private func rebuildCrewIfNeeded(_ world: WorldState) {
         // Real people only — the server's automation accounts never stand
@@ -279,10 +311,11 @@ final class WorldGameController: NSObject {
         guard signature != crewSignature else { return }
         crewSignature = signature
 
-        wanderers.forEach { $0.entity.removeFromParent() }
-        crewLabels.forEach { $0.removeFromParent() }
+        wanderers.forEach {
+            $0.entity.removeFromParent()
+            $0.label.removeFromParent()
+        }
         wanderers = []
-        crewLabels = []
 
         let shirts: [UIColor] = [WorldPalette.canopy, WorldPalette.sky, UIColor(Theme.clay),
                                  WorldPalette.blend(WorldPalette.canopy, toward: .white, fraction: 0.2)]
@@ -295,15 +328,17 @@ final class WorldGameController: NSObject {
             anchor.addChild(entity)
 
             let nameplate = WorldPropFactory.crewNameLabel(member.name)
-            nameplate.position = boardPoint(start) + SIMD3(0, 2.55, 0)
+            let labelAnchor = boardPoint(start) + SIMD3(0, 2.55, 0)
+            nameplate.position = labelAnchor
             anchor.addChild(nameplate)
-            crewLabels.append(nameplate)
 
             guard let legL = entity.findEntity(named: "legL"),
                   let legR = entity.findEntity(named: "legR") else { continue }
             wanderers.append(Wanderer(
                 entity: entity,
                 label: nameplate,
+                labelHalf: plateHalfSize(of: nameplate),
+                labelAnchor: labelAnchor,
                 legs: (legL, legR),
                 position: start,
                 target: start,
@@ -430,7 +465,7 @@ final class WorldGameController: NSObject {
             }
             w.entity.position = boardPoint(w.position)
             w.entity.orientation = simd_quatf(angle: w.heading, axis: [0, 1, 0])
-            w.label.position = boardPoint(w.position) + SIMD3(0, 2.55, 0)
+            w.labelAnchor = boardPoint(w.position) + SIMD3(0, 2.55, 0)
             wanderers[index] = w
         }
     }
@@ -497,24 +532,121 @@ final class WorldGameController: NSObject {
     }
 
     /// Billboards every floating card (site labels, crew nameplates) to the
-    /// camera, scaling with distance so text stays legible on a phone.
+    /// camera, scaling with distance so text stays legible on a phone, then
+    /// staggers cards that would cover each other: cards are projected to
+    /// screen space, and a top-down sweep drops any card whose plate would
+    /// overlap one above it — the north row fans out into a readable stack
+    /// instead of a pile. Site cards staggered far from home get a thin
+    /// leader line back to their pin.
     private func updateBillboards() {
+        let size = arView.bounds.size
+        guard size.width > 1, size.height > 1 else { return }
+        guard !siteLabels.isEmpty || !wanderers.isEmpty else { return }
+
         let cameraPosition = cameraEntity.position(relativeTo: nil)
+        let cameraRotation = cameraEntity.orientation(relativeTo: nil)
+        let aspect = Float(size.width / size.height)
+        let tanHalfV = tan(fovDegrees * .pi / 180 / 2)
+        let tanHalfH = tanHalfV * aspect
+        let right = cameraRotation.act(SIMD3<Float>(1, 0, 0))
+        let up = cameraRotation.act(SIMD3<Float>(0, 1, 0))
+        let forward = cameraRotation.act(SIMD3<Float>(0, 0, -1))
+
+        // One working list: site cards (with pins/leaders), then crew plates.
+        struct Placed {
+            let entity: Entity
+            let halfSize: SIMD2<Float>   // local plate half extents
+            let anchor: SIMD3<Float>
+            let scale: Float
+            let pxPerWorld: Float        // screen pixels per world unit at depth
+            let home: SIMD2<Float>       // projected center before staggering
+            var center: SIMD2<Float>     // center after staggering
+        }
+        var cards: [(Entity, SIMD2<Float>, SIMD3<Float>)] = []
         for label in siteLabels {
-            let labelPosition = label.position(relativeTo: nil)
-            let distance = simd_distance(cameraPosition, labelPosition)
-            let scale = min(max(distance / 26, 1.7), 3.4)
-            label.scale = SIMD3(repeating: scale)
+            cards.append((label.entity, label.halfSize, label.anchor))
+        }
+        for wanderer in wanderers {
+            cards.append((wanderer.label, wanderer.labelHalf, wanderer.labelAnchor))
+        }
+
+        var placed: [Placed] = []
+        for (entity, halfSize, anchor) in cards {
+            let rel = anchor - cameraPosition
+            let depth = -simd_dot(rel, forward)
+            guard depth > 0.5 else { continue }
+            let offset = SIMD2(simd_dot(rel, right), simd_dot(rel, up))
+            let ndc = SIMD2(offset.x / (tanHalfH * depth), offset.y / (tanHalfV * depth))
+            let center = SIMD2((ndc.x * 0.5 + 0.5) * Float(size.width),
+                               (1 - (ndc.y * 0.5 + 0.5)) * Float(size.height))
+            let scale = min(max(depth / 26, 1.7), 3.4)
             // Matching the camera orientation keeps the label plate parallel
             // to the screen while its +Z face points back toward the camera.
-            label.orientation = cameraEntity.orientation
+            entity.scale = SIMD3(repeating: scale)
+            entity.orientation = cameraRotation
+            placed.append(Placed(
+                entity: entity, halfSize: halfSize, anchor: anchor, scale: scale,
+                pxPerWorld: (Float(size.height) / 2) / (tanHalfV * depth),
+                home: center, center: center))
         }
-        for label in crewLabels {
-            let labelPosition = label.position(relativeTo: nil)
-            let distance = simd_distance(cameraPosition, labelPosition)
-            let scale = min(max(distance / 26, 1.7), 3.4)
-            label.scale = SIMD3(repeating: scale)
-            label.orientation = cameraEntity.orientation
+
+        // Stagger sweep, top of the screen downward: a card whose x-range
+        // meaningfully overlaps a card above it drops below that card. One
+        // pass in y order settles the whole stack; later cards check the
+        // already-dropped positions of every earlier one.
+        let order = placed.indices.sorted {
+            placed[$0].home.y < placed[$1].home.y ||
+            (placed[$0].home.y == placed[$1].home.y && placed[$0].home.x < placed[$1].home.x)
+        }
+        let pad: Float = 9
+        let heightPx = Float(size.height)
+        for k in order.indices {
+            let i = order[k]
+            let aHalfY = placed[i].halfSize.y * placed[i].scale * placed[i].pxPerWorld
+            let aHalfX = placed[i].halfSize.x * placed[i].scale * placed[i].pxPerWorld
+            for l in 0..<k {
+                let j = order[l]
+                let bHalfY = placed[j].halfSize.y * placed[j].scale * placed[j].pxPerWorld
+                let bHalfX = placed[j].halfSize.x * placed[j].scale * placed[j].pxPerWorld
+                let overlapX = min(placed[i].center.x + aHalfX, placed[j].center.x + bHalfX)
+                    - max(placed[i].center.x - aHalfX, placed[j].center.x - bHalfX)
+                guard overlapX > 0.35 * min(aHalfX, bHalfX) else { continue }
+                let minGap = aHalfY + bHalfY + pad
+                if placed[i].center.y - placed[j].center.y < minGap {
+                    placed[i].center.y = placed[j].center.y + minGap
+                }
+            }
+            // The stack stays off the HUD above and the thumbstick below,
+            // and no card travels absurdly far from where it belongs.
+            let maxTravel = max(placed[i].home.y,
+                                min(placed[i].home.y + heightPx * 0.16, heightPx * 0.92 - aHalfY))
+            placed[i].center.y = min(placed[i].center.y, maxTravel)
+            placed[i].center.y = max(placed[i].center.y, heightPx * 0.135 + aHalfY)
+        }
+
+        // Apply: screen-space drops become world-space offsets along the
+        // camera's up axis (cards are billboards, so up is always on-screen
+        // "up"). A site card displaced far from its pin grows a leader.
+        for card in placed {
+            let dropPx = card.center.y - card.home.y
+            card.entity.position = dropPx > 0.5
+                ? card.anchor - up * (dropPx / card.pxPerWorld)
+                : card.anchor
+        }
+        for label in siteLabels {
+            guard let card = placed.first(where: { $0.entity === label.entity }) else { continue }
+            let dropPx = card.center.y - card.home.y
+            let staggered = dropPx > 26
+            label.leader.isEnabled = staggered
+            guard staggered else { continue }
+            let plateBottom = card.entity.position - up * (card.halfSize.y * card.scale)
+            let pinHead = label.pinHead
+            let delta = plateBottom - pinHead
+            let length = simd_length(delta)
+            guard length > 0.01 else { continue }
+            label.leader.scale = SIMD3(0.035, length, 0.035)
+            label.leader.position = (plateBottom + pinHead) / 2
+            label.leader.orientation = simd_quatf(from: SIMD3(0, 1, 0), to: delta / length)
         }
     }
 
