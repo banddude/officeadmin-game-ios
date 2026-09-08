@@ -112,7 +112,7 @@ platform :ios do
       app_identifier: BUNDLE_ID,
       team_id: TEAM_ID,
       adhoc: true,
-      certificate_id: dist_certs.first,
+      cert_id: dist_certs.first,
       provisioning_name: "OfficeAdmin Game AdHoc",
       ignore_profiles_with_different_name: true,
       # force re-adds every registered device on each run, so the profile
