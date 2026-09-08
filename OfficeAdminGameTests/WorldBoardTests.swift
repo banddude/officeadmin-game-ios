@@ -159,7 +159,7 @@ final class WorldBoardTests: XCTestCase {
             let p = try XCTUnwrap(board.sitePositions[s.id], "\(s.id) placed")
             let m = WorldBoard.mercatorMeters(s.coordinate!)
             // Board y is south, so the true board bearing negates Mercator y.
-            let trueBearing = atan2(-(m.y - centroid.y), m.x - centroid.x)
+            let trueBearing = Float(atan2(-(m.y - centroid.y), m.x - centroid.x))
             let boardBearing = atan2(p.y - boardCenter.y, p.x - boardCenter.x)
             var delta = abs(boardBearing - trueBearing)
             if delta > .pi { delta = 2 * .pi - delta }
