@@ -5,6 +5,7 @@
 //  straight against known coordinates and hand-built rects.
 
 import CoreLocation
+import simd
 import XCTest
 @testable import OfficeAdminGame
 
