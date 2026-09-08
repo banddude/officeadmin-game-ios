@@ -53,24 +53,30 @@ final class WorldBoardTests: XCTestCase {
     }
 
     func testLayoutFitsPaddedBoardAndKeepsProportions() throws {
-        // 0.02° lng apart, 0.01° lat apart: y is the binding axis after fit.
+        // A NE/SW diagonal: both ends land away from the office's SE corner,
+        // so nothing gets shoved and proportions survive the fit exactly.
         let board = WorldBoard(sites: [
-            site("a", lat: 34.06, lng: -118.21),
-            site("b", lat: 34.05, lng: -118.19),
+            site("ne", lat: 34.32, lng: -117.84),
+            site("sw", lat: 33.78, lng: -118.24),
         ])
-        let a = try XCTUnwrap(board.sitePositions["a"])
-        let b = try XCTUnwrap(board.sitePositions["b"])
+        let ne = try XCTUnwrap(board.sitePositions["ne"])
+        let sw = try XCTUnwrap(board.sitePositions["sw"])
 
-        let usable = WorldBoard.size - SIMD2<Float>(WorldBoard.padding * 2, WorldBoard.padding * 2)
-        for p in [a, b] {
-            XCTAssertLessThanOrEqual(abs(p.x), usable.x / 2 + 0.5, "site x inside the padded board")
-            XCTAssertLessThanOrEqual(abs(p.y), usable.y / 2 + 0.5, "site y inside the padded board")
+        let regionMin = SIMD2(-WorldBoard.size.x / 2 + WorldBoard.sceneryWidth,
+                              -WorldBoard.size.y / 2 + WorldBoard.padding)
+        let regionMax = SIMD2(WorldBoard.size.x / 2 - WorldBoard.padding,
+                              WorldBoard.size.y / 2 - WorldBoard.padding)
+        for p in [ne, sw] {
+            XCTAssertGreaterThan(p.x, regionMin.x - 0.5, "site x east of the scenery band")
+            XCTAssertLessThan(p.x, regionMax.x + 0.5, "site x inside the padded board")
+            XCTAssertGreaterThan(p.y, regionMin.y - 0.5)
+            XCTAssertLessThan(p.y, regionMax.y + 0.5)
         }
 
         // A single uniform scale means board proportions == mercator proportions.
-        let spanX = abs(a.x - b.x), spanY = abs(a.y - b.y)
-        let meters = WorldBoard.mercatorMeters(CLLocationCoordinate2D(latitude: 34.06, longitude: -118.21))
-        let other = WorldBoard.mercatorMeters(CLLocationCoordinate2D(latitude: 34.05, longitude: -118.19))
+        let spanX = abs(ne.x - sw.x), spanY = abs(ne.y - sw.y)
+        let meters = WorldBoard.mercatorMeters(CLLocationCoordinate2D(latitude: 34.32, longitude: -117.84))
+        let other = WorldBoard.mercatorMeters(CLLocationCoordinate2D(latitude: 33.78, longitude: -118.24))
         let meterRatio = abs(other.x - meters.x) / abs(other.y - meters.y)
         XCTAssertEqual(spanX / spanY, Float(meterRatio), accuracy: 0.02 * Float(meterRatio))
     }
@@ -103,7 +109,8 @@ final class WorldBoardTests: XCTestCase {
     }
 
     func testSitesNeverBuryTheOfficeLot() throws {
-        // Two sites whose bounding box puts one of them in the office corner.
+        // Two sites whose bounding box puts one of them in the office corner:
+        // it gets shoved, but the office keeps its lot.
         let board = WorldBoard(sites: [
             site("nw", lat: 34.32, lng: -118.44),
             site("se", lat: 33.78, lng: -118.04, category: "New build"),
@@ -113,7 +120,7 @@ final class WorldBoardTests: XCTestCase {
                            "the office keeps its corner")
         }
         let se = try XCTUnwrap(board.sitePositions["se"])
-        XCTAssertGreaterThan(se.x, 15, "the south-east site actually landed in its corner")
+        XCTAssertGreaterThan(se.x, 0, "the south-east site stays in the eastern half")
     }
 
     func testBuildingSizeFollowsCategoryAndPhase() {
@@ -127,8 +134,8 @@ final class WorldBoardTests: XCTestCase {
 
     // MARK: - Walking
 
-    private let block = BoardRect.size(4, 4, at: SIMD2(Float(2), Float(0)))
-    private let bounds = BoardRect.size(72, 48, at: .zero)
+    private let block = BoardRect.size(2, 2, at: SIMD2(Float(2.2), Float(0)))
+    private let bounds = BoardRect.size(72 - 4.8, 48 - 4.8, at: .zero)
 
     func testClampKeepsPointInside() {
         let p = WorldWalk.clamp(SIMD2(Float(50), Float(-40)), to: bounds)
