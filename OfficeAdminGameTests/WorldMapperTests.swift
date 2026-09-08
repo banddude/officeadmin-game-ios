@@ -134,6 +134,21 @@ final class WorldMapperTests: XCTestCase {
         XCTAssertEqual(world.mail[0].envelopeTitle, "Invoice — Large invoices")
     }
 
+    func testInvoiceApprovalWaitsAtItsCustomerSite() throws {
+        let invoiceApproval = try XCTUnwrap(world.mail.first { $0.kind == .invoice })
+        XCTAssertEqual(invoiceApproval.siteID, "0b1c2d3e-4f50-4a1b-8c2d-9e0f1a2b3c4d",
+                       "the Kimura invoice approval belongs at the Kimura site")
+        let purchaseOrder = try XCTUnwrap(world.mail.first { $0.kind == .purchaseOrder })
+        XCTAssertNil(purchaseOrder.siteID,
+                     "PO approvals have no customer link — they wait at the office")
+    }
+
+    func testWhiteboardNotesCarryTheirSite() throws {
+        let byNumber = Dictionary(uniqueKeysWithValues: world.whiteboard.map { ($0.invoiceNumber, $0) })
+        XCTAssertEqual(byNumber["INV-00123"]?.siteID, "0b1c2d3e-4f50-4a1b-8c2d-9e0f1a2b3c4d")
+        XCTAssertEqual(byNumber["INV-00124"]?.siteID, "aa11bb22-cc33-4d44-8e55-ff6677889900")
+    }
+
     // MARK: Money as world state
 
     func testMoneyStateFromSummary() {

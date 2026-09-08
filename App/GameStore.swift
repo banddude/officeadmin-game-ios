@@ -30,8 +30,6 @@ final class GameStore {
     private(set) var phase: Phase = .needsSetup
     private(set) var world = WorldState(sites: [], crew: [], mail: [], money: .empty, whiteboard: [], playerName: nil)
     private(set) var lastLoadedAt: Date?
-    /// Which site the player has traveled to (camera destination).
-    private(set) var traveledSiteID: String?
 
     private var client: OAClient?
     private let geocoder = AddressGeocoder()
@@ -180,11 +178,5 @@ final class GameStore {
         } catch {
             return false
         }
-    }
-
-    // MARK: Travel
-
-    func travel(to siteID: String) {
-        traveledSiteID = siteID
     }
 }

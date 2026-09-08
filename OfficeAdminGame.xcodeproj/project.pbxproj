@@ -17,21 +17,24 @@
 		AE5B59AB5AA0A0B2DD16535C /* Core/Auth/GameCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = B48FCF0B2B9328A39DB74357 /* Core/Auth/GameCredentials.swift */; };
 		C061CF7ADD97129EE6E6F151 /* Core/Auth/KeychainCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E24C554F8AFC02782425B49C /* Core/Auth/KeychainCredentialStore.swift */; };
 		F696C43C5F10492302BB477F /* Core/World/AddressGeocoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BF96F2341A995AD74DF7098 /* Core/World/AddressGeocoder.swift */; };
+		E51A90BD4AAC0A14A04BA228 /* Core/World/WorldBoard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C972AFD4FC56E4C4B438C2C4 /* Core/World/WorldBoard.swift */; };
 		E35A868E436DBA08D86AFE9E /* Core/World/WorldMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0C2759AF689FE1C7378F0C3 /* Core/World/WorldMapper.swift */; };
 		9DBB8965B1B2AF9761B10671 /* Core/World/WorldModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F7AD75817E45496FB17F03 /* Core/World/WorldModels.swift */; };
 		0A021E5CC17F67F81D39AB5B /* Scenes/Office/JoystickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE9D473B47C5FAC0FEAC693D /* Scenes/Office/JoystickView.swift */; };
 		F5AB3646637EF76F577088DD /* Scenes/Office/OfficeRealityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EFD757D2FF81BCC38B5EC7D /* Scenes/Office/OfficeRealityView.swift */; };
 		51D2CAB9D29287284047C048 /* Scenes/Office/OfficeSceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41904CF139628289551B4C21 /* Scenes/Office/OfficeSceneView.swift */; };
-		82876B849D64E029C0C01B00 /* Scenes/World/SiteMarkerArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59E86E30AAEFF47E877871B2 /* Scenes/World/SiteMarkerArt.swift */; };
-		CEF18D6F6393316648733A8A /* Scenes/World/WorldMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B78CB48157F92F3C9C2FCD82 /* Scenes/World/WorldMapView.swift */; };
+		92400DBA98D1F3F5C9C2A664 /* Scenes/World/WorldPropFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310BB80D53E0C55A2B81387B /* Scenes/World/WorldPropFactory.swift */; };
+		1FD320AE9EB5A52323FB8ADB /* Scenes/World/WorldRealityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A5D6C5A8D863B9FB465BC2 /* Scenes/World/WorldRealityView.swift */; };
 		14E31CDC376CB2A5B981D7E5 /* Scenes/World/WorldSceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1254F677C8C35039A107E598 /* Scenes/World/WorldSceneView.swift */; };
 		25348607EA51E78D2547E08D /* Core/API/OAClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9CA3E265EFAC1E6BE770FD5 /* Core/API/OAClient.swift */; };
 		0F803CBA8A24D5805CCD108B /* Core/API/OAWireModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A650BBED79A410D4E8DBCF4 /* Core/API/OAWireModels.swift */; };
 		AE5B59AB5AA0A0B2DD16535C /* Core/Auth/GameCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = B48FCF0B2B9328A39DB74357 /* Core/Auth/GameCredentials.swift */; };
 		C061CF7ADD97129EE6E6F151 /* Core/Auth/KeychainCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E24C554F8AFC02782425B49C /* Core/Auth/KeychainCredentialStore.swift */; };
 		F696C43C5F10492302BB477F /* Core/World/AddressGeocoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BF96F2341A995AD74DF7098 /* Core/World/AddressGeocoder.swift */; };
+		E51A90BD4AAC0A14A04BA228 /* Core/World/WorldBoard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C972AFD4FC56E4C4B438C2C4 /* Core/World/WorldBoard.swift */; };
 		E35A868E436DBA08D86AFE9E /* Core/World/WorldMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0C2759AF689FE1C7378F0C3 /* Core/World/WorldMapper.swift */; };
 		9DBB8965B1B2AF9761B10671 /* Core/World/WorldModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F7AD75817E45496FB17F03 /* Core/World/WorldModels.swift */; };
+		C0828E342684BE64FFAB6D88 /* OfficeAdminGameTests/WorldBoardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73B2E728C19D881B737D00FA /* OfficeAdminGameTests/WorldBoardTests.swift */; };
 		8C79FCE47298BF4BAEBF3800 /* OfficeAdminGameTests/WorldMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C613950BFA707B5B6F15B2 /* OfficeAdminGameTests/WorldMapperTests.swift */; };
 		BCC7C0900E3A42910A3D452B /* OfficeAdminGameTests/Fixtures/approval-requests.json in Resources */ = {isa = PBXBuildFile; fileRef = C90AA8A0CF8B46FD8C840FCB /* OfficeAdminGameTests/Fixtures/approval-requests.json */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; };
 		BCE8D090C92DFDE6ECF9855A /* OfficeAdminGameTests/Fixtures/clock.json in Resources */ = {isa = PBXBuildFile; fileRef = 9A5581B8D09B3713AE7036F4 /* OfficeAdminGameTests/Fixtures/clock.json */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; };
@@ -55,6 +58,7 @@
 		B48FCF0B2B9328A39DB74357 /* Core/Auth/GameCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCredentials.swift; sourceTree = "<group>"; };
 		E24C554F8AFC02782425B49C /* Core/Auth/KeychainCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainCredentialStore.swift; sourceTree = "<group>"; };
 		1BF96F2341A995AD74DF7098 /* Core/World/AddressGeocoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressGeocoder.swift; sourceTree = "<group>"; };
+		C972AFD4FC56E4C4B438C2C4 /* Core/World/WorldBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldBoard.swift; sourceTree = "<group>"; };
 		F0C2759AF689FE1C7378F0C3 /* Core/World/WorldMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldMapper.swift; sourceTree = "<group>"; };
 		32F7AD75817E45496FB17F03 /* Core/World/WorldModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldModels.swift; sourceTree = "<group>"; };
 		C90AA8A0CF8B46FD8C840FCB /* OfficeAdminGameTests/Fixtures/approval-requests.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = approval-requests.json; sourceTree = "<group>"; };
@@ -66,12 +70,13 @@
 		AC7838558F26DD49EE7CB860 /* OfficeAdminGameTests/Fixtures/projects-detail.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = projects-detail.json; sourceTree = "<group>"; };
 		16487DB74F1580616E5505AA /* OfficeAdminGameTests/Fixtures/projects-list.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = projects-list.json; sourceTree = "<group>"; };
 		A6A7C544E401D3F12E548BC5 /* OfficeAdminGameTests/Fixtures/scheduled-shifts.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = scheduled-shifts.json; sourceTree = "<group>"; };
+		73B2E728C19D881B737D00FA /* OfficeAdminGameTests/WorldBoardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldBoardTests.swift; sourceTree = "<group>"; };
 		B1C613950BFA707B5B6F15B2 /* OfficeAdminGameTests/WorldMapperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldMapperTests.swift; sourceTree = "<group>"; };
 		CE9D473B47C5FAC0FEAC693D /* Scenes/Office/JoystickView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoystickView.swift; sourceTree = "<group>"; };
 		6EFD757D2FF81BCC38B5EC7D /* Scenes/Office/OfficeRealityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficeRealityView.swift; sourceTree = "<group>"; };
 		41904CF139628289551B4C21 /* Scenes/Office/OfficeSceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficeSceneView.swift; sourceTree = "<group>"; };
-		59E86E30AAEFF47E877871B2 /* Scenes/World/SiteMarkerArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteMarkerArt.swift; sourceTree = "<group>"; };
-		B78CB48157F92F3C9C2FCD82 /* Scenes/World/WorldMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldMapView.swift; sourceTree = "<group>"; };
+		310BB80D53E0C55A2B81387B /* Scenes/World/WorldPropFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldPropFactory.swift; sourceTree = "<group>"; };
+		A0A5D6C5A8D863B9FB465BC2 /* Scenes/World/WorldRealityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldRealityView.swift; sourceTree = "<group>"; };
 		1254F677C8C35039A107E598 /* Scenes/World/WorldSceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldSceneView.swift; sourceTree = "<group>"; };
 		0174C0329AFC5F769145E7C6 /* OfficeAdminGame.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OfficeAdminGame.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5D972B2C1A195542FCC97F86 /* OfficeAdminGameTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OfficeAdminGameTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -109,6 +114,7 @@
 			isa = PBXGroup;
 			children = (
 				4F03A639479B13215113CBB8 /* Fixtures */,
+				73B2E728C19D881B737D00FA /* OfficeAdminGameTests/WorldBoardTests.swift */,
 				B1C613950BFA707B5B6F15B2 /* OfficeAdminGameTests/WorldMapperTests.swift */,
 			);
 			path = OfficeAdminGameTests;
@@ -189,8 +195,8 @@
 		B8C9A0509AFB09AC8B0E9419 /* Scenes/World */ = {
 			isa = PBXGroup;
 			children = (
-				59E86E30AAEFF47E877871B2 /* Scenes/World/SiteMarkerArt.swift */,
-				B78CB48157F92F3C9C2FCD82 /* Scenes/World/WorldMapView.swift */,
+				310BB80D53E0C55A2B81387B /* Scenes/World/WorldPropFactory.swift */,
+				A0A5D6C5A8D863B9FB465BC2 /* Scenes/World/WorldRealityView.swift */,
 				1254F677C8C35039A107E598 /* Scenes/World/WorldSceneView.swift */,
 			);
 			path = World;
@@ -210,6 +216,7 @@
 			isa = PBXGroup;
 			children = (
 				1BF96F2341A995AD74DF7098 /* Core/World/AddressGeocoder.swift */,
+				C972AFD4FC56E4C4B438C2C4 /* Core/World/WorldBoard.swift */,
 				F0C2759AF689FE1C7378F0C3 /* Core/World/WorldMapper.swift */,
 				32F7AD75817E45496FB17F03 /* Core/World/WorldModels.swift */,
 			);
@@ -340,13 +347,14 @@
 				AE5B59AB5AA0A0B2DD16535C /* Core/Auth/GameCredentials.swift in Sources */,
 				C061CF7ADD97129EE6E6F151 /* Core/Auth/KeychainCredentialStore.swift in Sources */,
 				F696C43C5F10492302BB477F /* Core/World/AddressGeocoder.swift in Sources */,
+				E51A90BD4AAC0A14A04BA228 /* Core/World/WorldBoard.swift in Sources */,
 				E35A868E436DBA08D86AFE9E /* Core/World/WorldMapper.swift in Sources */,
 				9DBB8965B1B2AF9761B10671 /* Core/World/WorldModels.swift in Sources */,
 				0A021E5CC17F67F81D39AB5B /* Scenes/Office/JoystickView.swift in Sources */,
 				F5AB3646637EF76F577088DD /* Scenes/Office/OfficeRealityView.swift in Sources */,
 				51D2CAB9D29287284047C048 /* Scenes/Office/OfficeSceneView.swift in Sources */,
-				82876B849D64E029C0C01B00 /* Scenes/World/SiteMarkerArt.swift in Sources */,
-				CEF18D6F6393316648733A8A /* Scenes/World/WorldMapView.swift in Sources */,
+				92400DBA98D1F3F5C9C2A664 /* Scenes/World/WorldPropFactory.swift in Sources */,
+				1FD320AE9EB5A52323FB8ADB /* Scenes/World/WorldRealityView.swift in Sources */,
 				14E31CDC376CB2A5B981D7E5 /* Scenes/World/WorldSceneView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -360,8 +368,10 @@
 				AE5B59AB5AA0A0B2DD16535C /* Core/Auth/GameCredentials.swift in Sources */,
 				C061CF7ADD97129EE6E6F151 /* Core/Auth/KeychainCredentialStore.swift in Sources */,
 				F696C43C5F10492302BB477F /* Core/World/AddressGeocoder.swift in Sources */,
+				E51A90BD4AAC0A14A04BA228 /* Core/World/WorldBoard.swift in Sources */,
 				E35A868E436DBA08D86AFE9E /* Core/World/WorldMapper.swift in Sources */,
 				9DBB8965B1B2AF9761B10671 /* Core/World/WorldModels.swift in Sources */,
+				C0828E342684BE64FFAB6D88 /* OfficeAdminGameTests/WorldBoardTests.swift in Sources */,
 				8C79FCE47298BF4BAEBF3800 /* OfficeAdminGameTests/WorldMapperTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

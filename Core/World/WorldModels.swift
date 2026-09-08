@@ -127,6 +127,9 @@ struct WorldMailItem: Identifiable, Equatable {
     let fromName: String?
     let createdAt: Date
     let stepOrder: Int
+    /// The job site this piece belongs to (invoice approvals link through the
+    /// customer to their project); nil means it waits at the office instead.
+    var siteID: String?
 
     /// What the underlying record is (drives the envelope's wax seal).
     enum Kind: String, Equatable {
@@ -178,6 +181,9 @@ struct WorldWhiteboardNote: Identifiable, Equatable {
     let dueDate: Date
     let amountDueCents: Int
     let state: State
+    /// The customer's job site, when they have one — money trouble shows up
+    /// at the job that caused it, not just on the board.
+    var siteID: String?
 
     enum State: Equatable {
         case overdue(days: Int)

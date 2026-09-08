@@ -46,8 +46,7 @@ enum WorldMapper {
         // we can link it to a customer, and through them to that customer's
         // site — so mail visibly waits at the job it belongs to, not just on
         // the desk.
-        let invoiceContact: [String: String] = Dictionary(uniqueKeysWithValues:
-            inputs.invoices.map { ($0.id, $0.contactId) })
+        let invoiceContact = WorldMapper.invoiceContact(inputs)
         let approvalsByContact = Dictionary(grouping: inputs.approvals) { req -> String? in
             guard req.entityType == "invoice" else { return nil }
             return invoiceContact[req.entityId]
@@ -166,7 +165,9 @@ enum WorldMapper {
     // MARK: Mail
 
     static func mail(_ inputs: WorldInputs) -> [WorldMailItem] {
-        inputs.approvals
+        let invoiceContact = WorldMapper.invoiceContact(inputs)
+        let contactSite = WorldMapper.contactSite(inputs)
+        return inputs.approvals
             .filter { $0.status == "pending" }
             .map { request in
                 WorldMailItem(
@@ -175,7 +176,10 @@ enum WorldMapper {
                     workflowName: request.workflow?.name ?? "",
                     fromName: request.requestedBy?.user?.name,
                     createdAt: request.createdAt,
-                    stepOrder: request.currentStepOrder ?? 1)
+                    stepOrder: request.currentStepOrder ?? 1,
+                    siteID: request.entityType == "invoice"
+                        ? invoiceContact[request.entityId].flatMap { contactSite[$0] }
+                        : nil)
             }
             .sorted { $0.createdAt > $1.createdAt }
     }
@@ -204,6 +208,8 @@ enum WorldMapper {
 
     static func whiteboard(_ inputs: WorldInputs) -> [WorldWhiteboardNote] {
         let calendar = Calendar(identifier: .gregorian)
+        let invoiceContact = WorldMapper.invoiceContact(inputs)
+        let contactSite = WorldMapper.contactSite(inputs)
         return inputs.invoices
             .filter { ["sent", "partial", "overdue"].contains($0.status) && ($0.amountDue ?? 0) > 0 }
             .compactMap { invoice in
@@ -223,7 +229,8 @@ enum WorldMapper {
                                                customerName: invoice.contact?.name ?? "Customer",
                                                dueDate: due,
                                                amountDueCents: invoice.amountDue ?? invoice.total ?? 0,
-                                               state: state)
+                                               state: state,
+                                               siteID: invoiceContact[invoice.id].flatMap { contactSite[$0] })
                 }
                 return nil
             }
@@ -234,6 +241,19 @@ enum WorldMapper {
     }
 
     // MARK: Helpers
+
+    /// Customer contact id -> their project, so records that only know a
+    /// contact (invoices, approvals) can find the job site they belong to.
+    static func contactSite(_ inputs: WorldInputs) -> [String: String] {
+        Dictionary(inputs.projectDetails.compactMap { project in
+            project.contact.map { ($0.id, project.id) }
+        }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// Invoice id -> the customer it bills.
+    private static func invoiceContact(_ inputs: WorldInputs) -> [String: String] {
+        Dictionary(uniqueKeysWithValues: inputs.invoices.map { ($0.id, $0.contactId) })
+    }
 
     private static func todaysShifts(_ inputs: WorldInputs) -> [OAScheduledShift] {
         let calendar = Calendar(identifier: .gregorian)
